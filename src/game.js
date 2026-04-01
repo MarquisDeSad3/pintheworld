@@ -457,30 +457,15 @@ function bindEvents() {
 
   document.querySelectorAll('.modal-close').forEach(b=>{b.onclick=()=>hideModal(b.dataset.close);});
   document.querySelectorAll('.modal').forEach(m=>{m.onclick=e=>{if(e.target===m)m.classList.add('hidden');};});
-  // Premium button
-  $('#btn-premium').onclick = () => {
-    // TODO: Stripe checkout for $1.99 lifetime
-    showToast('Premium coming soon! $1.99 lifetime');
-  };
-
-  // Hide premium banner if already premium
-  if (localStorage.getItem('ptw_premium') === 'true') {
-    $('#premium-banner')?.classList.add('hidden');
-  }
-
   // Language selector
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.onclick = () => {
-      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      localStorage.setItem('ptw_lang', btn.dataset.lang);
+  const langSelect = $('#lang-select');
+  if (langSelect) {
+    langSelect.value = localStorage.getItem('ptw_lang') || 'en';
+    langSelect.onchange = () => {
+      localStorage.setItem('ptw_lang', langSelect.value);
       // TODO: apply translations
-      showToast(`Language: ${btn.dataset.lang.toUpperCase()}`);
     };
-  });
-  // Set saved language
-  const savedLang = localStorage.getItem('ptw_lang') || 'en';
-  document.querySelector(`.lang-btn[data-lang="${savedLang}"]`)?.classList.add('active');
+  }
 
   gameMode='places';
 }
