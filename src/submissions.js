@@ -5,6 +5,7 @@ import { getCountry } from './countries/index.js';
 import { playSound } from './sounds.js';
 import { supabase, isDemoMode } from './supabase.js';
 import { getCurrentUser } from './auth.js';
+import { payPromo } from './payments.js';
 
 let submitMap = null;
 let countriesLayer = null;
@@ -335,8 +336,21 @@ async function submitLevel() {
     }
 
     if (!isDemoMode && supabase) {
-      const { error } = await supabase.from('pending_rounds').insert(round);
+      const { data: inserted, error } = await supabase.from('pending_rounds').insert(round).select().single();
       if (error) { showStatus(`Error: ${error.message}`, 'error'); btn.disabled = false; return; }
+
+      // If promo, redirect to Stripe checkout
+      if (isPromo && inserted?.id) {
+        btn.textContent = 'Redirecting to payment...';
+        const paid = await payPromo(submitMode, inserted.id);
+        if (!paid) {
+          showStatus('Could not start payment. Your submission is saved — you can pay later.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Retry Payment';
+          return;
+        }
+        return; // User is redirected to Stripe
+      }
     } else {
       const pending = JSON.parse(localStorage.getItem('ptw_pending_rounds') || '[]');
       round.id = `user_${Date.now()}`;
@@ -350,7 +364,7 @@ async function submitLevel() {
     localStorage.setItem('ptw_stats', JSON.stringify(stats));
 
     playSound('perfect');
-    showStatus(isPromo ? 'Submitted! Payment processing coming soon.' : 'Level submitted! Thank you!', 'success');
+    showStatus('Level submitted! Thank you!', 'success');
     btn.textContent = 'Submitted!';
 
   } catch (e) {

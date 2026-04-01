@@ -16,6 +16,7 @@ import { isAdmin, initAdmin } from './admin.js';
 import { initI18n, setLang, t } from './i18n.js';
 import { supabase, isDemoMode } from './supabase.js';
 import { initSubmitScreen, destroySubmitScreen } from './submissions.js';
+import { checkPremium, buyPremium, handlePaymentReturn } from './payments.js';
 
 const PLAYS_GUEST = 1;
 const PLAYS_SIGNED_IN = 5;
@@ -50,6 +51,20 @@ export async function init() {
   onAuthChange(updateAuthUI);
   updateAuthUI(getCurrentUser());
   bindEvents();
+
+  // Handle Stripe payment return
+  const paymentResult = handlePaymentReturn();
+  if (paymentResult) {
+    if (paymentResult.success) {
+      if (paymentResult.type === 'premium') {
+        showToast('Welcome to Premium! Unlimited plays unlocked.');
+      } else {
+        showToast('Payment successful! Your promo is live.');
+      }
+    } else {
+      showToast('Payment was cancelled.');
+    }
+  }
 
   // Check hash route
   if (window.location.hash === '#admin') {
@@ -104,7 +119,7 @@ function showAdminScreen() {
 async function startGame(mode) {
   gameMode = mode;
   // Check play limits
-  const isPremium = localStorage.getItem('ptw_premium') === 'true';
+  const isPremium = await checkPremium();
   if (!isPremium) {
     const plays = getDailyPlays();
     const limit = isSignedIn() ? PLAYS_SIGNED_IN : PLAYS_GUEST;
@@ -112,7 +127,7 @@ async function startGame(mode) {
       if (!isSignedIn()) {
         showToast(t('signInMore'));
       } else {
-        showToast(t('dailyLimit'));
+        showPremiumModal();
       }
       return;
     }
@@ -432,6 +447,42 @@ function getDailyPlays() { try { const d=JSON.parse(localStorage.getItem(`ptw_pl
 function incrementDailyPlays() { localStorage.setItem(`ptw_plays_${gameMode}`, JSON.stringify({date:new Date().toDateString(),count:getDailyPlays()+1})); }
 function getLocalStats() { try{return JSON.parse(localStorage.getItem('ptw_stats'))||{};}catch{return {};} }
 function saveLocalStats(s) { localStorage.setItem('ptw_stats',JSON.stringify(s)); }
+
+function showPremiumModal() {
+  const existing = $('#modal-premium');
+  if (existing) { existing.classList.remove('hidden'); return; }
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-premium';
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="text-align:center;max-width:360px">
+      <div style="font-size:48px;margin-bottom:12px">🌟</div>
+      <h2 style="margin:0 0 8px">Go Premium</h2>
+      <p style="color:#9ca3af;margin:0 0 16px">Unlimited plays forever — one-time purchase</p>
+      <div style="font-size:32px;font-weight:800;color:#f59e0b;margin:0 0 20px">$3.99</div>
+      <button id="btn-buy-premium" class="btn-primary" style="width:100%;padding:14px;font-size:16px;font-weight:700">
+        Unlock Unlimited Plays
+      </button>
+      <button id="btn-close-premium" class="btn-secondary" style="width:100%;margin-top:8px;padding:10px">
+        Maybe Later
+      </button>
+    </div>`;
+  document.getElementById('app').appendChild(modal);
+
+  $('#btn-buy-premium').onclick = async () => {
+    $('#btn-buy-premium').disabled = true;
+    $('#btn-buy-premium').textContent = 'Redirecting to Stripe...';
+    const ok = await buyPremium();
+    if (!ok) {
+      showToast('Could not start checkout. Try again.');
+      $('#btn-buy-premium').disabled = false;
+      $('#btn-buy-premium').textContent = 'Unlock Unlimited Plays';
+    }
+  };
+  $('#btn-close-premium').onclick = () => modal.classList.add('hidden');
+  modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
+}
 
 function bindEvents() {
   $('#btn-auth').onclick=()=>{isSignedIn()?signOut():signInWithGoogle();};

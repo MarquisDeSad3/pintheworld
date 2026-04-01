@@ -74,7 +74,7 @@ const TRANSLATIONS = {
     selectCountryRegion: 'Select a country, then a region',
     // Limits
     signInMore: 'Sign in to play up to 5 times daily!',
-    dailyLimit: 'Daily limit reached! Get unlimited plays for $1.99',
+    dailyLimit: 'Daily limit reached! Get unlimited plays for $3.99',
     // Leaderboard
     leaderboard: 'Leaderboard',
     country: 'Country',
@@ -149,7 +149,7 @@ const TRANSLATIONS = {
     promoSubmitted: '¡Enviado! Pago disponible proximamente.',
     selectCountryRegion: 'Selecciona un pais, luego una region',
     signInMore: '¡Inicia sesion para jugar hasta 5 veces al dia!',
-    dailyLimit: '¡Limite diario alcanzado! Juega ilimitado por $1.99',
+    dailyLimit: '¡Limite diario alcanzado! Juega ilimitado por $3.99',
     leaderboard: 'Clasificacion',
     country: 'Pais',
     global: 'Global',
