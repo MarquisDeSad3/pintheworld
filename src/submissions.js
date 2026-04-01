@@ -51,7 +51,14 @@ export function initSubmitScreen() {
     selectedFile = file;
     photoUpload.classList.add('has-file');
     const reader = new FileReader();
-    reader.onload = (ev) => { preview.src = ev.target.result; };
+    reader.onload = (ev) => {
+      preview.src = ev.target.result;
+      // Update promo preview photo
+      const promoPhoto = $('#promo-preview-photo');
+      const noPhoto = $('#promo-preview-no-photo');
+      if (promoPhoto) { promoPhoto.src = ev.target.result; promoPhoto.style.display = 'block'; }
+      if (noPhoto) noPhoto.style.display = 'none';
+    };
     reader.readAsDataURL(file);
     checkReady();
   };
@@ -61,14 +68,16 @@ export function initSubmitScreen() {
     checkReady();
   };
 
-  // Mode buttons
+  // Mode buttons — update promo text based on mode
   document.querySelectorAll('.submit-mode-btn').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.submit-mode-btn').forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
       submitMode = btn.dataset.mode;
+      updateModeTexts();
     };
   });
+  updateModeTexts();
 
   // Promo toggle
   $('#promo-toggle').checked = false;
@@ -100,8 +109,9 @@ export function initSubmitScreen() {
   };
 
   // Update preview links on any social input change
-  ['promo-instagram', 'promo-whatsapp', 'promo-website', 'promo-phone'].forEach(id => {
-    $(`#${id}`).oninput = updatePreviewLinks;
+  ['promo-instagram', 'promo-whatsapp', 'promo-telegram', 'promo-website', 'promo-phone'].forEach(id => {
+    const el = $(`#${id}`);
+    if (el) el.oninput = updatePreviewLinks;
   });
 
   // Submit button
@@ -109,6 +119,31 @@ export function initSubmitScreen() {
 
   // Set initial price
   updatePromoPrice();
+}
+
+function updateModeTexts() {
+  const isPeople = submitMode === 'people';
+  $('#submit-mode-hint').textContent = isPeople
+    ? 'Find your match — Cupido style'
+    : 'Promote a business or place';
+  $('#promo-toggle-text').textContent = isPeople
+    ? 'Promote yourself — Cupido'
+    : 'Promote your business';
+  $('#promo-header-text').textContent = isPeople
+    ? 'Your Cupido profile will appear when players guess your location'
+    : 'Your business ad will appear when players guess this location';
+  $('#promo-name-label').textContent = isPeople ? 'Your name *' : 'Business name *';
+  $('#promo-name-input').placeholder = isPeople ? 'Your name' : 'Your business name';
+  $('#promo-bio-label').textContent = isPeople ? 'About you *' : 'Description *';
+  $('#promo-bio-input').placeholder = isPeople
+    ? 'Tell people about yourself, what you\'re looking for...'
+    : 'Tell people about your business...';
+  // Show telegram field for people, hide for places
+  const tgField = $('#field-telegram');
+  if (tgField) tgField.classList.toggle('hidden', !isPeople);
+  // Update preview card style
+  const card = $('#promo-preview-card');
+  if (card) card.classList.toggle('cupido-card', isPeople);
 }
 
 function updatePromoPrice() {
@@ -130,13 +165,15 @@ function updatePreviewLinks() {
   const links = [];
   const ig = $('#promo-instagram').value.trim();
   const wa = $('#promo-whatsapp').value.trim();
+  const tg = $('#promo-telegram')?.value.trim();
   const web = $('#promo-website').value.trim();
   const ph = $('#promo-phone').value.trim();
-  if (ig) links.push(`📸 ${ig}`);
-  if (wa) links.push(`💬 WhatsApp`);
-  if (web) links.push(`🌐 Website`);
-  if (ph) links.push(`📞 ${ph}`);
-  $('#promo-preview-links').textContent = links.join('  ·  ') || 'Add social links...';
+  if (ig) links.push(`<span>📸 ${ig}</span>`);
+  if (wa) links.push(`<span>💬 WhatsApp</span>`);
+  if (tg) links.push(`<span>✈️ ${tg}</span>`);
+  if (web) links.push(`<span>🌐 Website</span>`);
+  if (ph) links.push(`<span>📞 ${ph}</span>`);
+  $('#promo-preview-links').innerHTML = links.join('') || '<span style="opacity:0.4">Add social links...</span>';
 }
 
 // ---- Load countries on submit map ----

@@ -97,9 +97,16 @@
           <div class="submit-field">
             <label>Type</label>
             <div class="submit-mode-btns">
-              <button class="submit-mode-btn selected" data-mode="places">Places</button>
-              <button class="submit-mode-btn" data-mode="people">People</button>
+              <button class="submit-mode-btn selected" data-mode="places">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+                Business / Place
+              </button>
+              <button class="submit-mode-btn" data-mode="people">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                Cupido / Person
+              </button>
             </div>
+            <span id="submit-mode-hint" class="submit-mode-hint">Promote a business or place</span>
           </div>
 
           <!-- Location (selected on map) -->
@@ -122,7 +129,7 @@
               <label class="toggle-label">
                 <input type="checkbox" id="promo-toggle" />
                 <span class="toggle-switch"></span>
-                <span class="toggle-text">Promote your business / profile</span>
+                <span id="promo-toggle-text" class="toggle-text">Promote your business</span>
               </label>
               <span class="promo-price" id="promo-price"></span>
             </div>
@@ -130,26 +137,30 @@
 
           <!-- Promo section (hidden by default) -->
           <div id="promo-section" class="promo-section hidden">
-            <div class="promo-section-header">
+            <div id="promo-section-header" class="promo-section-header">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01z"/></svg>
-              Your ad will appear when players see this level
+              <span id="promo-header-text">Your ad will appear when players see this level</span>
             </div>
             <div class="submit-field">
-              <label>Business / Profile name *</label>
+              <label id="promo-name-label">Business name *</label>
               <input type="text" id="promo-name-input" placeholder="Your business name" maxlength="40" class="submit-input" />
             </div>
             <div class="submit-field">
-              <label>Description *</label>
-              <textarea id="promo-bio-input" placeholder="Tell people about your business or yourself..." maxlength="150" class="submit-input submit-textarea"></textarea>
+              <label id="promo-bio-label">Description *</label>
+              <textarea id="promo-bio-input" placeholder="Tell people about your business..." maxlength="150" class="submit-input submit-textarea"></textarea>
               <span id="promo-bio-count" class="char-count">0 / 150</span>
             </div>
             <div class="submit-field">
-              <label>Instagram</label>
+              <label>Instagram *</label>
               <input type="text" id="promo-instagram" placeholder="@yourbusiness" maxlength="50" class="submit-input" />
             </div>
             <div class="submit-field">
               <label>WhatsApp</label>
               <input type="text" id="promo-whatsapp" placeholder="+1 234 567 8900" maxlength="20" class="submit-input" />
+            </div>
+            <div id="field-telegram" class="submit-field hidden">
+              <label>Telegram</label>
+              <input type="text" id="promo-telegram" placeholder="@username" maxlength="50" class="submit-input" />
             </div>
             <div class="submit-field">
               <label>Website</label>
@@ -159,12 +170,20 @@
               <label>Phone</label>
               <input type="tel" id="promo-phone" placeholder="+1 234 567 8900" maxlength="20" class="submit-input" />
             </div>
+
+            <!-- Live preview card -->
             <div class="promo-preview">
-              <div class="promo-preview-label">Preview</div>
-              <div class="promo-preview-card">
-                <div id="promo-preview-name" class="promo-preview-name">Your Business</div>
-                <div id="promo-preview-bio" class="promo-preview-bio">Your description here...</div>
-                <div id="promo-preview-links" class="promo-preview-links"></div>
+              <div class="promo-preview-label">PREVIEW — This is what players will see</div>
+              <div id="promo-preview-card" class="promo-preview-card">
+                <div class="promo-preview-photo-area">
+                  <img id="promo-preview-photo" class="promo-preview-photo" src="" />
+                  <div id="promo-preview-no-photo" class="promo-preview-no-photo">Photo</div>
+                </div>
+                <div class="promo-preview-info">
+                  <div id="promo-preview-name" class="promo-preview-name">Your Name</div>
+                  <div id="promo-preview-bio" class="promo-preview-bio">Your description here...</div>
+                  <div id="promo-preview-links" class="promo-preview-links"></div>
+                </div>
               </div>
             </div>
           </div>
