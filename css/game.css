@@ -522,15 +522,28 @@
   background: rgba(15,15,20,0.85); backdrop-filter: blur(8px);
 }
 
-/* Wizard photo upload */
+/* Wizard photo upload — changes shape based on mode */
 .photo-upload-wizard {
   position: relative; border: 2px dashed rgba(255,255,255,0.15);
   border-radius: var(--radius); overflow: hidden; cursor: pointer;
-  min-height: 200px; transition: border-color 0.15s; margin-bottom: 12px;
+  transition: border-color 0.15s, aspect-ratio 0.3s; margin-bottom: 12px;
+  aspect-ratio: 16/9; /* default: business/places */
+  max-width: 100%;
+}
+.photo-upload-wizard.mode-people {
+  aspect-ratio: 9/16;
+  max-width: 280px;
+  margin-left: auto;
+  margin-right: auto;
 }
 .photo-upload-wizard:hover { border-color: var(--primary); }
 .photo-upload-wizard input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; z-index: 2; }
-.photo-preview-wizard { width: 100%; display: none; max-height: 300px; object-fit: cover; }
+.photo-upload-placeholder {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+  color: var(--text-dim); text-align: center; padding: 20px;
+}
+.photo-preview-wizard { width: 100%; height: 100%; display: none; object-fit: cover; }
 .photo-upload-wizard.has-file .photo-upload-placeholder { display: none; }
 .photo-upload-wizard.has-file .photo-preview-wizard { display: block; }
 

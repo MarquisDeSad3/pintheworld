@@ -244,6 +244,9 @@ function updateModeTexts() {
   if (tg) tg.classList.toggle('hidden', !isPeople);
   const card = $('#promo-preview-card');
   if (card) card.classList.toggle('cupido-card', isPeople);
+  // Update photo upload area shape
+  const upload = $('#photo-upload');
+  if (upload) upload.classList.toggle('mode-people', isPeople);
 }
 
 function updatePromoPrice() {
