@@ -267,6 +267,32 @@ function revealResult() {
   $('#result-distance').textContent = isPerfect ? 'Nailed it!' : `${distText} away`;
   $('#phase-indicator').classList.add('hidden');
 
+  // Show promo card if this round has promo data
+  const promoCard = $('#result-promo-card');
+  if (r.isPromo && r.promoData && promoCard) {
+    const pd = r.promoData;
+    const isPeoplPromo = r.mode === 'people';
+    promoCard.className = `result-promo-card ${isPeoplPromo ? 'cupido-card' : ''}`;
+    promoCard.innerHTML = `
+      <div class="result-promo-photo" style="aspect-ratio:${isPeoplPromo ? '9/16' : '16/9'}">
+        <img src="${r.photoUrl}" />
+      </div>
+      <div class="result-promo-info">
+        <div class="result-promo-name">${pd.name || ''}</div>
+        <div class="result-promo-bio">${pd.bio || ''}</div>
+        <div class="result-promo-links">
+          ${pd.instagram ? `<a href="https://instagram.com/${pd.instagram.replace('@','')}" target="_blank">📸 ${pd.instagram}</a>` : ''}
+          ${pd.whatsapp ? `<a href="https://wa.me/${pd.whatsapp.replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>` : ''}
+          ${pd.telegram ? `<a href="https://t.me/${pd.telegram.replace('@','')}" target="_blank">✈️ Telegram</a>` : ''}
+          ${pd.website ? `<a href="${pd.website}" target="_blank">🌐 Website</a>` : ''}
+          ${pd.phone ? `<a href="tel:${pd.phone}">📞 ${pd.phone}</a>` : ''}
+        </div>
+      </div>`;
+    promoCard.classList.remove('hidden');
+  } else if (promoCard) {
+    promoCard.classList.add('hidden');
+  }
+
   showModal('modal-result');
   $('#score-display').textContent = `${totalScore.toLocaleString()} pts`;
 }
@@ -369,37 +395,37 @@ async function loadRounds(mode) {
 
 function getDemoRounds(mode) {
   return [
-    {lat:48.8584,lng:2.2945,locationName:'Eiffel Tower, Paris',country:'France',countryId:'fr'},
-    {lat:40.6892,lng:-74.0445,locationName:'Statue of Liberty',country:'USA',countryId:'us'},
-    {lat:27.1751,lng:78.0421,locationName:'Taj Mahal',country:'India',countryId:'in'},
-    {lat:-22.9519,lng:-43.2105,locationName:'Christ the Redeemer',country:'Brazil',countryId:'br'},
-    {lat:41.8902,lng:12.4922,locationName:'Colosseum',country:'Italy',countryId:'it'},
-    {lat:51.5014,lng:-0.1419,locationName:'Big Ben',country:'UK',countryId:'gb'},
-    {lat:35.6762,lng:139.6503,locationName:'Tokyo Tower',country:'Japan',countryId:'jp'},
-    {lat:-33.8568,lng:151.2153,locationName:'Sydney Opera House',country:'Australia',countryId:'au'},
-    {lat:29.9792,lng:31.1342,locationName:'Great Pyramid',country:'Egypt',countryId:'eg'},
-    {lat:37.9715,lng:23.7257,locationName:'Acropolis',country:'Greece',countryId:'gr'},
-    {lat:40.4319,lng:-3.6753,locationName:'Santiago Bernabeu',country:'Spain',countryId:'es'},
-    {lat:21.4225,lng:-77.9910,locationName:'Trinidad',country:'Cuba',countryId:'cu'},
-    {lat:19.4326,lng:-99.1332,locationName:'Zocalo',country:'Mexico',countryId:'mx'},
-    {lat:55.7539,lng:37.6208,locationName:'Red Square',country:'Russia',countryId:'ru'},
-    {lat:-34.6037,lng:-58.3816,locationName:'Obelisco',country:'Argentina',countryId:'ar'},
-    {lat:25.1972,lng:55.2744,locationName:'Burj Khalifa',country:'UAE',countryId:'ae'},
-    {lat:-13.1631,lng:-72.5450,locationName:'Machu Picchu',country:'Peru',countryId:'pe'},
-    {lat:52.5200,lng:13.4050,locationName:'Brandenburg Gate',country:'Germany',countryId:'de'},
-    {lat:4.7110,lng:-74.0721,locationName:'Bogota',country:'Colombia',countryId:'co'},
-    {lat:37.5665,lng:126.9780,locationName:'Seoul',country:'South Korea',countryId:'kr'},
-    {lat:23.1136,lng:-82.3666,locationName:'Havana',country:'Cuba',countryId:'cu'},
-    {lat:13.7563,lng:100.5018,locationName:'Bangkok',country:'Thailand',countryId:'th'},
-    {lat:59.3293,lng:18.0686,locationName:'Stockholm',country:'Sweden',countryId:'se'},
-    {lat:38.7223,lng:-9.1393,locationName:'Lisbon',country:'Portugal',countryId:'pt'},
-    {lat:-1.2921,lng:36.8219,locationName:'Nairobi',country:'Kenya',countryId:'ke'},
-    {lat:39.9042,lng:116.4074,locationName:'Forbidden City',country:'China',countryId:'cn'},
-    {lat:43.7230,lng:10.3966,locationName:'Tower of Pisa',country:'Italy',countryId:'it'},
-    {lat:48.2082,lng:16.3738,locationName:'Vienna',country:'Austria',countryId:'at'},
-    {lat:50.8503,lng:4.3517,locationName:'Brussels',country:'Belgium',countryId:'be'},
-    {lat:31.7683,lng:35.2137,locationName:'Jerusalem',country:'Israel',countryId:'il'},
-  ].map((l,i) => ({...l, id:`d${i}`, mode, photoUrl:`https://picsum.photos/seed/${l.locationName.replace(/[^a-z]/gi,'')}/600/400`, isPromo:false}));
+    {lat:48.8584,lng:2.2945,locationName:'Eiffel Tower',country:'France',countryId:'fr',subdivisionId:'fr___le_de_france',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/600px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg'},
+    {lat:41.8902,lng:12.4922,locationName:'Colosseum',country:'Italy',countryId:'it',subdivisionId:'it_lazio',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/600px-Colosseo_2020.jpg'},
+    {lat:51.5014,lng:-0.1419,locationName:'Big Ben',country:'United Kingdom',countryId:'gb',subdivisionId:'gb_greater_london',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Clock_Tower_-_Palace_of_Westminster%2C_London_-_May_2007.jpg/600px-Clock_Tower_-_Palace_of_Westminster%2C_London_-_May_2007.jpg'},
+    {lat:40.6892,lng:-74.0445,locationName:'Statue of Liberty',country:'United States',countryId:'us',subdivisionId:'us_new_york',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Statue_of_Liberty_7.jpg/600px-Statue_of_Liberty_7.jpg'},
+    {lat:-22.9519,lng:-43.2105,locationName:'Christ the Redeemer',country:'Brazil',countryId:'br',subdivisionId:'br_rio_de_janeiro',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Christ_the_Redeemer_-_Cristo_Redentor.jpg/600px-Christ_the_Redeemer_-_Cristo_Redentor.jpg'},
+    {lat:27.1751,lng:78.0421,locationName:'Taj Mahal',country:'India',countryId:'in',subdivisionId:'in_uttar_pradesh',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Taj_Mahal%2C_Agra%2C_India_edit3.jpg/600px-Taj_Mahal%2C_Agra%2C_India_edit3.jpg'},
+    {lat:35.6762,lng:139.6503,locationName:'Tokyo Tower',country:'Japan',countryId:'jp',subdivisionId:'jp_tokyo',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/TaroTokyo20110213-TokyoTower-01min.jpg/600px-TaroTokyo20110213-TokyoTower-01min.jpg'},
+    {lat:29.9792,lng:31.1342,locationName:'Great Pyramid',country:'Egypt',countryId:'eg',subdivisionId:'eg_giza',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Kheops-Pyramid.jpg/600px-Kheops-Pyramid.jpg'},
+    {lat:-33.8568,lng:151.2153,locationName:'Sydney Opera House',country:'Australia',countryId:'au',subdivisionId:'au_new_south_wales',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Sydney_Australia._%2821339175489%29.jpg/600px-Sydney_Australia._%2821339175489%29.jpg'},
+    {lat:40.4319,lng:-3.6753,locationName:'Santiago Bernabeu',country:'Spain',countryId:'es',subdivisionId:'es_madrid',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Nuevo_Estadio_Santiago_Bernab%C3%A9u_-_2024.jpg/600px-Nuevo_Estadio_Santiago_Bernab%C3%A9u_-_2024.jpg'},
+    {lat:52.5163,lng:13.3777,locationName:'Brandenburg Gate',country:'Germany',countryId:'de',subdivisionId:'de_berlin',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Brandenburger_Tor_abends.jpg/600px-Brandenburger_Tor_abends.jpg'},
+    {lat:23.1136,lng:-82.3666,locationName:'El Capitolio, Havana',country:'Cuba',countryId:'cu',subdivisionId:'cu_la_habana',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/El_Capitolio_Havana.jpg/600px-El_Capitolio_Havana.jpg'},
+    {lat:19.4326,lng:-99.1332,locationName:'Palacio de Bellas Artes',country:'Mexico',countryId:'mx',subdivisionId:'mx_ciudad_de_m_xico',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Palacio_de_Bellas_Artes_-_Ciudad_de_M%C3%A9xico.jpg/600px-Palacio_de_Bellas_Artes_-_Ciudad_de_M%C3%A9xico.jpg'},
+    {lat:55.7539,lng:37.6208,locationName:'Red Square',country:'Russia',countryId:'ru',subdivisionId:'ru_moscow',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/RedSquare_SaintBasile_%28pixinn.net%29.jpg/600px-RedSquare_SaintBasile_%28pixinn.net%29.jpg'},
+    {lat:-34.6037,lng:-58.3816,locationName:'Obelisco',country:'Argentina',countryId:'ar',subdivisionId:'ar_buenos_aires',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Buenos_Aires_-_Avenida_9_de_Julio.jpg/600px-Buenos_Aires_-_Avenida_9_de_Julio.jpg'},
+    {lat:25.1972,lng:55.2744,locationName:'Burj Khalifa',country:'UAE',countryId:'ae',subdivisionId:'ae_dubai',photoUrl:'https://upload.wikimedia.org/wikipedia/en/thumb/9/93/Burj_Khalifa.jpg/600px-Burj_Khalifa.jpg'},
+    {lat:-13.1631,lng:-72.5450,locationName:'Machu Picchu',country:'Peru',countryId:'pe',subdivisionId:'pe_cusco',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Machu_Picchu%2C_Peru.jpg/600px-Machu_Picchu%2C_Peru.jpg'},
+    {lat:37.5665,lng:126.9780,locationName:'Gyeongbokgung',country:'South Korea',countryId:'kr',subdivisionId:'kr_seoul',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/%EA%B2%BD%EB%B3%B5%EA%B6%81_%EA%B7%BC%EC%A0%95%EC%A0%84_%EC%95%9E_%EC%96%B4%EB%8F%84.jpg/600px-%EA%B2%BD%EB%B3%B5%EA%B6%81_%EA%B7%BC%EC%A0%95%EC%A0%84_%EC%95%9E_%EC%96%B4%EB%8F%84.jpg'},
+    {lat:13.7563,lng:100.5018,locationName:'Wat Arun',country:'Thailand',countryId:'th',subdivisionId:'th_bangkok',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Wat_Arun_Bangkok.jpg/600px-Wat_Arun_Bangkok.jpg'},
+    {lat:59.3293,lng:18.0686,locationName:'Stockholm Old Town',country:'Sweden',countryId:'se',subdivisionId:'se_stockholm',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Stockholms_gamla_stan%2C_2012.jpg/600px-Stockholms_gamla_stan%2C_2012.jpg'},
+    {lat:38.7223,lng:-9.1393,locationName:'Belem Tower',country:'Portugal',countryId:'pt',subdivisionId:'pt_lisboa',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Bel%C3%A9m_Tower_Lisbon.jpg/600px-Bel%C3%A9m_Tower_Lisbon.jpg'},
+    {lat:-1.2921,lng:36.8219,locationName:'Nairobi',country:'Kenya',countryId:'ke',subdivisionId:'ke_nairobi',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Nairobi_Skyline_from_Nairobi_National_Park.jpg/600px-Nairobi_Skyline_from_Nairobi_National_Park.jpg'},
+    {lat:39.9042,lng:116.4074,locationName:'Forbidden City',country:'China',countryId:'cn',subdivisionId:'cn_beijing',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Forbidden_city_07.jpg/600px-Forbidden_city_07.jpg'},
+    {lat:-33.9249,lng:18.4241,locationName:'Table Mountain',country:'South Africa',countryId:'za',subdivisionId:'za_western_cape',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Table_Mountain_DavidNewton.jpg/600px-Table_Mountain_DavidNewton.jpg'},
+    {lat:48.2082,lng:16.3738,locationName:'Schonbrunn Palace',country:'Austria',countryId:'at',subdivisionId:'at_wien',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Schloss_Sch%C3%B6nbrunn_-_Gartenseite.jpg/600px-Schloss_Sch%C3%B6nbrunn_-_Gartenseite.jpg'},
+    {lat:4.7110,lng:-74.0721,locationName:'Monserrate',country:'Colombia',countryId:'co',subdivisionId:'co_bogot_',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Monserrate_Bogot%C3%A1.jpg/600px-Monserrate_Bogot%C3%A1.jpg'},
+    {lat:45.4215,lng:-75.6972,locationName:'Parliament Hill',country:'Canada',countryId:'ca',subdivisionId:'ca_ontario',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Ottawa_-_ON_-_Parliament_Hill.jpg/600px-Ottawa_-_ON_-_Parliament_Hill.jpg'},
+    {lat:21.4225,lng:-77.9910,locationName:'Trinidad',country:'Cuba',countryId:'cu',subdivisionId:'cu_sancti_sp_ritus',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Trinidad_%28Kuba%29_02.jpg/600px-Trinidad_%28Kuba%29_02.jpg'},
+    {lat:31.7683,lng:35.2137,locationName:'Western Wall',country:'Israel',countryId:'il',subdivisionId:'il_jerusalem',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Western_Wall_2.jpg/600px-Western_Wall_2.jpg'},
+    {lat:37.9715,lng:23.7257,locationName:'Acropolis',country:'Greece',countryId:'gr',subdivisionId:'gr_attica',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/AthenaeumAcropolis.jpg/600px-AthenaeumAcropolis.jpg'},
+  ].map((l,i) => ({...l, id:`d${i}`, mode, isPromo:false}));
 }
 
 function getDailyPlays() { try { const d=JSON.parse(localStorage.getItem(`ptw_plays_${gameMode}`)); return d?.date===new Date().toDateString()?d.count:0; } catch{return 0;} }

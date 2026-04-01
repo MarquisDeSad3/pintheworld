@@ -414,7 +414,39 @@
 .result-score.ok { color: var(--text); }
 .result-score.bad { color: var(--danger); }
 .result-detail { color: var(--text-dim); margin-bottom: 4px; }
-.result-distance { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 16px; }
+.result-distance { color: var(--text-dim); font-size: 0.85rem; margin-bottom: 12px; }
+
+/* Promo card in result modal */
+.result-promo-card {
+  background: linear-gradient(135deg, #1e1b4b, #312e81);
+  border-radius: var(--radius); overflow: hidden; margin-bottom: 12px;
+  border: 1px solid rgba(99,102,241,0.2); text-align: left;
+}
+.result-promo-card.cupido-card {
+  background: linear-gradient(135deg, #4a1942, #831843);
+  border-color: rgba(236,72,153,0.3); text-align: center;
+}
+.result-promo-card.hidden { display: none; }
+.result-promo-photo { overflow: hidden; }
+.result-promo-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.result-promo-card.cupido-card .result-promo-photo {
+  width: 90px; height: 90px; border-radius: 50%; margin: 12px auto 8px;
+  border: 2px solid rgba(236,72,153,0.4); overflow: hidden;
+}
+.result-promo-card:not(.cupido-card) .result-promo-photo {
+  aspect-ratio: 16/9; max-height: 120px;
+}
+.result-promo-info { padding: 10px 14px; }
+.result-promo-name { font-weight: 700; font-size: 0.95rem; }
+.result-promo-bio { font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-top: 3px; }
+.result-promo-links {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; font-size: 0.7rem;
+}
+.result-promo-links a {
+  color: rgba(255,255,255,0.6); text-decoration: none;
+  background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 10px;
+}
+.result-promo-links a:hover { color: white; background: rgba(255,255,255,0.12); }
 
 /* Game Over Modal */
 .gameover-modal { text-align: center; }
