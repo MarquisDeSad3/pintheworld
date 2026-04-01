@@ -644,36 +644,57 @@
   font-size: 0.65rem; color: var(--accent); margin-bottom: 8px;
   text-transform: uppercase; letter-spacing: 1px; font-weight: 600;
 }
+/* Promo card — Business (16:9 landscape) */
 .promo-preview-card {
   background: linear-gradient(135deg, #1e1b4b, #312e81);
-  border-radius: var(--radius); padding: 16px;
-  display: flex; gap: 14px; align-items: flex-start;
+  border-radius: var(--radius); overflow: hidden;
   border: 1px solid rgba(99,102,241,0.2);
 }
-.promo-preview-card.cupido-card {
-  background: linear-gradient(135deg, #4a1942, #831843);
-  border-color: rgba(236,72,153,0.3);
+.promo-preview-card .promo-preview-photo-area {
+  width: 100%; aspect-ratio: 16/9; overflow: hidden; position: relative;
 }
-.promo-preview-photo-area { flex-shrink: 0; }
-.promo-preview-photo {
-  width: 70px; height: 70px; border-radius: 50%; object-fit: cover;
-  border: 2px solid rgba(255,255,255,0.2); display: none;
+.promo-preview-card .promo-preview-photo {
+  width: 100%; height: 100%; object-fit: cover; display: none;
 }
-.promo-preview-no-photo {
-  width: 70px; height: 70px; border-radius: 50%;
-  background: rgba(255,255,255,0.08); display: flex;
-  align-items: center; justify-content: center; font-size: 0.7rem; color: var(--text-dim);
+.promo-preview-card .promo-preview-no-photo {
+  width: 100%; height: 100%;
+  background: rgba(255,255,255,0.05); display: flex;
+  align-items: center; justify-content: center; font-size: 0.8rem; color: var(--text-dim);
 }
-.promo-preview-info { flex: 1; min-width: 0; }
+.promo-preview-card .promo-preview-info { padding: 14px 16px; }
 .promo-preview-name { font-weight: 700; font-size: 1.05rem; }
 .promo-preview-bio { font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-top: 4px; line-height: 1.3; }
 .promo-preview-links {
-  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
-  font-size: 0.7rem;
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 0.7rem;
 }
-.promo-preview-links a, .promo-preview-links span {
-  color: rgba(255,255,255,0.5); text-decoration: none;
+.promo-preview-links span {
+  color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.06);
+  padding: 3px 8px; border-radius: 10px;
 }
+
+/* Promo card — Cupido (1:1 square, centered profile) */
+.promo-preview-card.cupido-card {
+  background: linear-gradient(135deg, #4a1942, #831843);
+  border-color: rgba(236,72,153,0.3);
+  text-align: center; padding: 20px 16px;
+}
+.promo-preview-card.cupido-card .promo-preview-photo-area {
+  width: 120px; height: 120px; aspect-ratio: 1/1;
+  border-radius: 50%; overflow: hidden; margin: 0 auto 12px;
+  border: 3px solid rgba(236,72,153,0.4);
+}
+.promo-preview-card.cupido-card .promo-preview-photo {
+  width: 100%; height: 100%; object-fit: cover; display: none; border-radius: 50%;
+}
+.promo-preview-card.cupido-card .promo-preview-no-photo {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: rgba(255,255,255,0.08); display: flex;
+  align-items: center; justify-content: center; font-size: 0.8rem; color: var(--text-dim);
+}
+.promo-preview-card.cupido-card .promo-preview-info { padding: 0; }
+.promo-preview-card.cupido-card .promo-preview-name { font-size: 1.2rem; }
+.promo-preview-card.cupido-card .promo-preview-bio { font-size: 0.85rem; }
+.promo-preview-card.cupido-card .promo-preview-links { justify-content: center; }
 .submit-mode-hint { font-size: 0.7rem; color: var(--text-dim); font-style: italic; }
 .submit-mode-btn { display: flex; align-items: center; gap: 6px; justify-content: center; }
 
