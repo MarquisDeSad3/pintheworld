@@ -75,9 +75,11 @@ export function initSubmitScreen() {
       btn.classList.add('selected');
       submitMode = btn.dataset.mode;
       updateModeTexts();
+      updatePromoPrice();
     };
   });
   updateModeTexts();
+  updatePromoPrice();
 
   // Promo toggle
   $('#promo-toggle').checked = false;
@@ -147,18 +149,9 @@ function updateModeTexts() {
 }
 
 function updatePromoPrice() {
-  if (!selectedCountryId) {
-    $('#promo-price').textContent = '$6.99 USD';
-    return;
-  }
-  const c = getCountry(selectedCountryId);
-  if (c) {
-    const price = (c.promoPrice / 100).toFixed(2);
-    const curr = c.currency.toUpperCase();
-    $('#promo-price').textContent = `${price} ${curr}`;
-  } else {
-    $('#promo-price').textContent = '$6.99 USD';
-  }
+  const isPeople = submitMode === 'people';
+  const basePrice = isPeople ? 6.99 : 29.99;
+  $('#promo-price').textContent = `$${basePrice.toFixed(2)} USD`;
 }
 
 function updatePreviewLinks() {
