@@ -1,8 +1,10 @@
-/* Level Creator / Submissions — with Promo system */
+/* Level Creator / Submissions — with Promo system + Supabase */
 
 import L from 'leaflet';
 import { getCountry } from './countries/index.js';
 import { playSound } from './sounds.js';
+import { supabase, isDemoMode } from './supabase.js';
+import { getCurrentUser } from './auth.js';
 
 let submitMap = null;
 let countriesLayer = null;
@@ -225,57 +227,117 @@ function checkReady() {
 }
 
 // ---- Submit ----
-function submitLevel() {
-  const photoUrl = selectedFile ? '[local file]' : $('#photo-url').value.trim();
-  const submitterName = $('#submit-name').value.trim() || 'Anonymous';
+async function submitLevel() {
+  const btn = $('#btn-submit-level');
+  btn.disabled = true;
+  btn.textContent = 'Uploading...';
+  showStatus('', '');
 
-  const round = {
-    id: `user_${Date.now()}`,
-    countryId: selectedCountryId,
-    countryName: selectedCountryName,
-    subdivisionId: selectedSubId,
-    subdivisionName: selectedSubName,
-    mode: submitMode,
-    photoUrl,
-    submitter: submitterName,
-    timestamp: Date.now(),
-    status: 'pending',
-    isPromo,
-  };
+  try {
+    // 1. Upload photo
+    let photoUrl = '';
+    if (selectedFile) {
+      photoUrl = await uploadPhoto(selectedFile);
+      if (!photoUrl) { showStatus('Failed to upload photo', 'error'); btn.disabled = false; btn.textContent = isPromo ? 'Submit & Pay' : 'Submit Level (Free)'; return; }
+    } else {
+      photoUrl = $('#photo-url').value.trim();
+      if (!photoUrl) { showStatus('Add a photo', 'error'); btn.disabled = false; return; }
+    }
 
-  // Add promo data if enabled
-  if (isPromo) {
-    round.promoData = {
-      name: $('#promo-name-input').value.trim(),
-      bio: $('#promo-bio-input').value.trim(),
-      instagram: $('#promo-instagram').value.trim(),
-      whatsapp: $('#promo-whatsapp').value.trim(),
-      website: $('#promo-website').value.trim(),
-      phone: $('#promo-phone').value.trim(),
+    const user = getCurrentUser();
+    const submitterName = $('#submit-name').value.trim() || 'Anonymous';
+    const cc = getCountry(selectedCountryId);
+
+    const round = {
+      country_id: selectedCountryId,
+      country_name: cc ? cc.name : selectedCountryName,
+      subdivision_id: `${selectedCountryId}_${selectedSubId}`,
+      subdivision_name: selectedSubName,
+      mode: submitMode,
+      photo_url: photoUrl,
+      difficulty: 'medium',
+      is_promo: isPromo,
+      submitter_name: submitterName,
+      submitter_id: (user && !user.isGuest) ? user.id : null,
+      status: isPromo ? 'pending_payment' : 'pending',
     };
 
-    // In production: trigger Stripe checkout here
-    // For now, just save as pending_promo
-    round.status = 'pending_payment';
-    showStatus('Promo submitted! Payment will be processed via Stripe.', 'success');
-  } else {
-    showStatus('Level submitted! Thank you!', 'success');
+    // Add promo data
+    if (isPromo) {
+      round.promo_data = {
+        name: $('#promo-name-input').value.trim(),
+        bio: $('#promo-bio-input').value.trim(),
+        instagram: $('#promo-instagram').value.trim(),
+        whatsapp: $('#promo-whatsapp').value.trim(),
+        website: $('#promo-website').value.trim(),
+        phone: $('#promo-phone').value.trim(),
+      };
+    }
+
+    // 2. Save to Supabase or localStorage
+    if (!isDemoMode && supabase) {
+      const { error } = await supabase.from('pending_rounds').insert(round);
+      if (error) { showStatus(`Error: ${error.message}`, 'error'); btn.disabled = false; return; }
+    } else {
+      // Fallback localStorage
+      const pending = JSON.parse(localStorage.getItem('ptw_pending_rounds') || '[]');
+      round.id = `user_${Date.now()}`;
+      round.created_at = new Date().toISOString();
+      pending.push(round);
+      localStorage.setItem('ptw_pending_rounds', JSON.stringify(pending));
+    }
+
+    // Update local stats
+    const stats = JSON.parse(localStorage.getItem('ptw_stats') || '{}');
+    stats.totalSubmissions = (stats.totalSubmissions || 0) + 1;
+    localStorage.setItem('ptw_stats', JSON.stringify(stats));
+
+    playSound('perfect');
+
+    if (isPromo) {
+      showStatus('Promo submitted! Payment processing coming soon.', 'success');
+    } else {
+      showStatus('Level submitted! Thank you for contributing!', 'success');
+    }
+
+    setTimeout(resetForm, 2500);
+
+  } catch (e) {
+    console.error('Submit error:', e);
+    showStatus('Something went wrong. Try again.', 'error');
+    btn.disabled = false;
+    btn.textContent = isPromo ? 'Submit & Pay' : 'Submit Level (Free)';
+  }
+}
+
+// ---- Upload photo to Supabase Storage ----
+async function uploadPhoto(file) {
+  if (!supabase || isDemoMode) {
+    // Demo mode — return data URL
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
   }
 
-  // Save to localStorage
-  const pending = JSON.parse(localStorage.getItem('ptw_pending_rounds') || '[]');
-  pending.push(round);
-  localStorage.setItem('ptw_pending_rounds', JSON.stringify(pending));
+  const ext = file.name.split('.').pop().toLowerCase();
+  const fileName = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+  const filePath = `submissions/${fileName}`;
 
-  // Update stats
-  const stats = JSON.parse(localStorage.getItem('ptw_stats') || '{}');
-  stats.totalSubmissions = (stats.totalSubmissions || 0) + 1;
-  localStorage.setItem('ptw_stats', JSON.stringify(stats));
+  const { data, error } = await supabase.storage.from('photos').upload(filePath, file, {
+    contentType: file.type,
+    upsert: false,
+  });
 
-  playSound('perfect');
+  if (error) {
+    console.error('Upload error:', error);
+    return null;
+  }
 
-  // Reset form after delay
-  setTimeout(resetForm, 2500);
+  // Get public URL
+  const { data: urlData } = supabase.storage.from('photos').getPublicUrl(filePath);
+  return urlData.publicUrl;
 }
 
 function resetForm() {

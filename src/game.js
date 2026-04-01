@@ -13,6 +13,7 @@ import {
 } from './map.js';
 import { initAuth, onAuthChange, signInWithGoogle, signOut, getCurrentUser, isSignedIn } from './auth.js';
 import { isAdmin, initAdmin } from './admin.js';
+import { supabase, isDemoMode } from './supabase.js';
 import { initSubmitScreen, destroySubmitScreen } from './submissions.js';
 
 const MAX_DAILY_PLAYS = 3;
@@ -100,7 +101,8 @@ async function startGame(mode) {
   gameMode = mode;
   if (!isSignedIn() && getDailyPlays() >= MAX_DAILY_PLAYS) { showToast('Sign in for unlimited plays!'); return; }
 
-  dailyRounds = selectDailyRounds(getDemoRounds(mode), ROUNDS_PER_GAME);
+  const allRounds = await loadRounds(mode);
+  dailyRounds = selectDailyRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length));
   currentRoundIndex = 0;
   totalScore = 0;
   roundScores = [];
@@ -300,6 +302,52 @@ function shareResults() {
   const t = `PinTheWorld 🌍\n${e}\nScore: ${totalScore.toLocaleString()} / ${MAX_SCORE_PER_ROUND*dailyRounds.length}\npintheworld.com`;
   if (navigator.share) navigator.share({text:t}).catch(()=>{});
   else navigator.clipboard.writeText(t).then(()=>showToast('Copied!'));
+}
+
+// ---- Load rounds from Supabase (fallback to demo) ----
+async function loadRounds(mode) {
+  // Try Supabase first
+  if (!isDemoMode && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('rounds')
+        .select('*')
+        .eq('mode', mode)
+        .eq('active', true);
+      if (!error && data && data.length >= 5) {
+        return data.map(r => ({
+          id: r.id,
+          lat: 0, lng: 0, // We use subdivision centroid for scoring
+          locationName: r.subdivision_name || '?',
+          country: r.country_name || '?',
+          countryId: r.country_id,
+          subdivisionId: r.subdivision_id,
+          mode: r.mode,
+          photoUrl: r.photo_url,
+          isPromo: r.is_promo,
+          promoData: r.promo_data,
+        }));
+      }
+    } catch (e) { console.error('Error loading rounds:', e); }
+  }
+
+  // Also check localStorage for admin-created rounds
+  const localActive = JSON.parse(localStorage.getItem('ptw_active_rounds') || '[]');
+  if (localActive.length >= 5) {
+    return localActive.filter(r => r.mode === mode || !r.mode).map(r => ({
+      id: r.id, lat: r.lat || 0, lng: r.lng || 0,
+      locationName: r.locationName || r.subdivision_name || '?',
+      country: r.countryName || r.country_name || '?',
+      countryId: r.countryId || r.country_id,
+      subdivisionId: r.subdivisionId || r.subdivision_id,
+      mode: mode, photoUrl: r.photoUrl || r.photo_url,
+      isPromo: r.isPromo || r.is_promo,
+      promoData: r.promoData || r.promo_data,
+    }));
+  }
+
+  // Fallback to demo
+  return getDemoRounds(mode);
 }
 
 function getDemoRounds(mode) {
