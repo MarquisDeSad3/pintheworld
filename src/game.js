@@ -13,6 +13,7 @@ import {
 } from './map.js';
 import { initAuth, onAuthChange, signInWithGoogle, signOut, getCurrentUser, isSignedIn } from './auth.js';
 import { isAdmin, initAdmin } from './admin.js';
+import { initI18n, setLang, t } from './i18n.js';
 import { supabase, isDemoMode } from './supabase.js';
 import { initSubmitScreen, destroySubmitScreen } from './submissions.js';
 
@@ -44,6 +45,7 @@ function showToast(msg, dur) {
 
 // ---- Init ----
 export async function init() {
+  initI18n();
   await initAuth();
   onAuthChange(updateAuthUI);
   updateAuthUI(getCurrentUser());
@@ -108,9 +110,9 @@ async function startGame(mode) {
     const limit = isSignedIn() ? PLAYS_SIGNED_IN : PLAYS_GUEST;
     if (plays >= limit) {
       if (!isSignedIn()) {
-        showToast('Sign in to play up to 5 times daily!');
+        showToast(t('signInMore'));
       } else {
-        showToast('Daily limit reached! Get unlimited plays for $1.99');
+        showToast(t('dailyLimit'));
       }
       return;
     }
@@ -144,7 +146,7 @@ function startRound() {
   $('#btn-confirm').disabled = true;
   $('#btn-confirm').textContent = 'Confirm Region';
   $('#selected-info').classList.add('hidden');
-  $('#phase-indicator').textContent = 'Select a country';
+  $('#phase-indicator').textContent = t('selectCountry');
   $('#phase-indicator').classList.remove('hidden');
 
   showCountries((iso, name) => {
@@ -415,7 +417,7 @@ function bindEvents() {
       $('#btn-confirm').disabled = true;
       $('#btn-confirm').textContent = 'Confirm Region';
       $('#selected-info').classList.add('hidden');
-      $('#phase-indicator').textContent = 'Select a country';
+      $('#phase-indicator').textContent = t('selectCountry');
       showCountries((iso, name) => {
         if (gameState !== 'PLAYING_COUNTRY' && gameState !== 'PLAYING_SUBDIV') return;
         playSound('confirm');
@@ -462,8 +464,7 @@ function bindEvents() {
   if (langSelect) {
     langSelect.value = localStorage.getItem('ptw_lang') || 'en';
     langSelect.onchange = () => {
-      localStorage.setItem('ptw_lang', langSelect.value);
-      // TODO: apply translations
+      setLang(langSelect.value);
     };
   }
 
