@@ -47,6 +47,26 @@ export function playSound(type) {
       setTimeout(() => playTone(523, 0.15, 'sine', 0.12), 150);
       setTimeout(() => playTone(659, 0.15, 'sine', 0.12), 300);
       setTimeout(() => playTone(784, 0.4, 'sine', 0.18), 450);
+    } else if (type === 'konami') {
+      // Magical ascending arpeggio — secret discovered!
+      playTone(440, 0.1, 'sine', 0.12);
+      setTimeout(() => playTone(554, 0.1, 'sine', 0.12), 80);
+      setTimeout(() => playTone(659, 0.1, 'sine', 0.12), 160);
+      setTimeout(() => playTone(880, 0.1, 'sine', 0.14), 240);
+      setTimeout(() => playTone(1108, 0.1, 'sine', 0.14), 320);
+      setTimeout(() => playTone(1318, 0.3, 'triangle', 0.18), 400);
+      setTimeout(() => playTone(1760, 0.5, 'sine', 0.2), 500);
+    } else if (type === 'retro') {
+      // Old-timey typewriter click sequence
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => playTone(800 + Math.random() * 400, 0.03, 'square', 0.06), i * 60);
+      }
+      setTimeout(() => playTone(400, 0.15, 'sine', 0.1), 350);
+    } else if (type === 'secret') {
+      // Mysterious discovery chime
+      playTone(392, 0.2, 'sine', 0.1);
+      setTimeout(() => playTone(523, 0.2, 'sine', 0.12), 200);
+      setTimeout(() => playTone(659, 0.3, 'triangle', 0.15), 400);
     }
   } catch (e) { /* silent */ }
 }

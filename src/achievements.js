@@ -1,4 +1,4 @@
-/* Achievement system — 60+ world-themed achievements */
+/* Achievement system — 85+ world-themed achievements */
 
 import { playSound } from './sounds.js';
 
@@ -72,22 +72,85 @@ export const ACHIEVEMENTS = [
   { id: 'submit_50',  name: 'Producer',        icon: '🎥', cat: 'Creator', desc: 'Submit 50 levels', check: s => (s.totalSubmissions || 0) >= 50 },
   { id: 'submit_100', name: 'Legend Builder',   icon: '🏛️', cat: 'Creator', desc: 'Submit 100 levels', check: s => (s.totalSubmissions || 0) >= 100 },
 
-  // ===== SECRET (5) =====
-  { id: 'midnight',    name: 'Night Owl',    icon: '🦉', cat: 'Secret', desc: 'Play at midnight',                check: s => s.playedAtMidnight },
-  { id: 'christmas',   name: 'Santa Guesser', icon: '🎅', cat: 'Secret', desc: 'Play on Christmas Day',          check: s => s.playedOnChristmas },
-  { id: 'ten_streak',  name: 'On a Roll',    icon: '🎳', cat: 'Secret', desc: '10 perfect guesses in a row',     check: s => (s.perfectStreak || 0) >= 10 },
-  { id: 'speed_demon', name: 'Speed Demon',  icon: '⚡', cat: 'Secret', desc: 'Confirm guess within 3 seconds',  check: s => s.fastGuess },
-  { id: 'globe_trotter', name: 'Globe Trotter', icon: '🌍', cat: 'Secret', desc: 'Guess correct in 20 different countries', check: s => (s.countriesCorrect || 0) >= 20 },
+  // ===== CULTURE — Cinema, TV & Books (8) =====
+  { id: 'culture_indy',    name: 'Indiana Jones',        icon: '🤠', cat: 'Culture', desc: 'Play in 3 archaeological countries', check: s => countFromList(s, ['eg', 'gr', 'mx', 'pe', 'il', 'it', 'tr', 'in']) >= 3 },
+  { id: 'culture_80days',  name: '80 Days',              icon: '🎩', cat: 'Culture', desc: '8+ countries in one week',           check: s => (s.countriesThisWeek || 0) >= 8 },
+  { id: 'culture_matrix',  name: 'Red Pill',             icon: '💊', cat: 'Culture', desc: 'Reach level 20+',                   check: s => (s.totalScore || 0) >= 490000 },
+  { id: 'culture_lotr',    name: 'One Ring',             icon: '💍', cat: 'Culture', desc: 'Play in New Zealand',                check: s => hasPlayed(s, 'nz') },
+  { id: 'culture_houston', name: 'Houston, We Have a Problem', icon: '🚀', cat: 'Culture', desc: '3 bad rounds in a row',       check: s => (s.failStreak || 0) >= 3 },
+  { id: 'culture_rocky',   name: 'Eye of the Tiger',     icon: '🥊', cat: 'Culture', desc: '3 games in a row with 40k+',        check: s => (s.winStreak || 0) >= 3 },
+  { id: 'culture_got',     name: 'Winter is Coming',     icon: '❄️', cat: 'Culture', desc: 'Play a Nordic country in winter',    check: s => s.nordicInWinter },
+  { id: 'culture_bond',    name: '007',                  icon: '🕵️', cat: 'Culture', desc: 'Play in 7 European countries',       check: s => countFromContinent(s, 'Europe') >= 7 },
+
+  // ===== INTERNET & MEMES (7) =====
+  { id: 'net_rickroll',  name: 'Never Gonna Give You Up', icon: '🎵', cat: 'Internet', desc: 'Activate the Konami Code',         check: s => s.konamiActivated },
+  { id: 'net_404',       name: '404 Not Found',           icon: '🔍', cat: 'Internet', desc: 'Guess wrong country 5 times',       check: s => (s.wrongCountryStreak || 0) >= 5 },
+  { id: 'net_stonks',    name: 'Stonks',                  icon: '📈', cat: 'Internet', desc: 'Improve score 5 games in a row',    check: s => (s.improvingStreak || 0) >= 5 },
+  { id: 'net_f',         name: 'Press F',                 icon: '🇫', cat: 'Internet', desc: 'Press F to pay respects',            check: s => s.pressedF },
+  { id: 'net_gg',        name: 'GG',                      icon: '🎮', cat: 'Internet', desc: 'Complete a perfect game',            check: (s, rs) => rs && rs.length >= 10 && rs.every(r => r === MAX_SCORE_PER_ROUND) },
+  { id: 'net_sus',       name: "That's Sus",              icon: '🔴', cat: 'Internet', desc: 'Score 0 on a round you expected to ace', check: s => s.susRound },
+  { id: 'net_npc',       name: 'NPC Energy',              icon: '🤖', cat: 'Internet', desc: 'Same score on 2 rounds in a game',  check: (s, rs) => rs && hasDuplicateScores(rs) },
+
+  // ===== HISTORY (5) =====
+  { id: 'hist_silk',      name: 'Silk Road',              icon: '🐫', cat: 'History', desc: 'Play in China, India & Turkey',      check: s => hasPlayedAll(s, ['cn', 'in', 'tr']) },
+  { id: 'hist_roman',     name: 'All Roads Lead to Rome', icon: '🏛️', cat: 'History', desc: 'Play in IT, ES, FR, GB & GR',       check: s => hasPlayedAll(s, ['it', 'es', 'fr', 'gb', 'gr']) },
+  { id: 'hist_viking',    name: 'Valhalla',               icon: '⚔️', cat: 'History', desc: 'Play in NO, SE & DK',               check: s => hasPlayedAll(s, ['no', 'se', 'dk']) },
+  { id: 'hist_columbus',  name: 'New World',              icon: '⛵', cat: 'History', desc: 'Play ES then Americas same day',     check: s => s.columbusDay },
+  { id: 'hist_renaissance', name: 'Renaissance',          icon: '🎨', cat: 'History', desc: 'Play in IT, FR & ES',               check: s => hasPlayedAll(s, ['it', 'fr', 'es']) },
+
+  // ===== SECRET (10) =====
+  { id: 'midnight',       name: 'Night Owl',       icon: '🦉', cat: 'Secret', desc: 'Play at midnight',                check: s => s.playedAtMidnight },
+  { id: 'christmas',      name: 'Santa Guesser',   icon: '🎅', cat: 'Secret', desc: 'Play on Christmas Day',           check: s => s.playedOnChristmas },
+  { id: 'ten_streak',     name: 'On a Roll',       icon: '🎳', cat: 'Secret', desc: '10 perfect guesses in a row',     check: s => (s.perfectStreak || 0) >= 10 },
+  { id: 'speed_demon',    name: 'Speed Demon',     icon: '⚡', cat: 'Secret', desc: 'Confirm guess within 3 seconds',  check: s => s.fastGuess },
+  { id: 'globe_trotter',  name: 'Globe Trotter',   icon: '🌍', cat: 'Secret', desc: 'Guess correct in 20 countries',   check: s => (s.countriesCorrect || 0) >= 20 },
+  { id: 'secret_konami',  name: 'Up Up Down Down',  icon: '🎮', cat: 'Secret', desc: '???',                            check: s => s.konamiActivated },
+  { id: 'secret_pi',      name: '3.14159',          icon: '🥧', cat: 'Secret', desc: 'Play on Pi Day',                 check: s => s.playedOnPiDay },
+  { id: 'secret_newyear', name: 'Happy New Year',   icon: '🎆', cat: 'Secret', desc: 'Play on January 1st',            check: s => s.playedOnNewYear },
+  { id: 'secret_friday13', name: 'Bad Luck',        icon: '🖤', cat: 'Secret', desc: 'Play on Friday the 13th',        check: s => s.playedOnFriday13 },
+  { id: 'secret_palindrome', name: 'Palindrome',    icon: '🔄', cat: 'Secret', desc: 'Get a palindrome score',         check: s => s.palindromeScore },
 ];
 
-// ---- Continent helpers ----
+// ---- Helpers ----
 function hasContinent(stats, continent) {
-  const played = stats.continentsPlayed || [];
-  return played.includes(continent);
+  return (stats.continentsPlayed || []).includes(continent);
 }
 
 function countContinents(stats) {
   return (stats.continentsPlayed || []).length;
+}
+
+function hasPlayed(stats, countryId) {
+  const list = stats.countriesPlayedList || [];
+  return list.includes(countryId);
+}
+
+function hasPlayedAll(stats, countryIds) {
+  const list = stats.countriesPlayedList || [];
+  return countryIds.every(c => list.includes(c));
+}
+
+function countFromList(stats, countryIds) {
+  const list = stats.countriesPlayedList || [];
+  return countryIds.filter(c => list.includes(c)).length;
+}
+
+function countFromContinent(stats, continent) {
+  return (stats.europeanCountries || stats[`${continent.toLowerCase()}Countries`] || 0);
+}
+
+function hasDuplicateScores(roundScores) {
+  const seen = new Set();
+  for (const s of roundScores) {
+    if (seen.has(s)) return true;
+    seen.add(s);
+  }
+  return false;
+}
+
+function isPalindrome(n) {
+  const s = String(n);
+  return s.length >= 3 && s === s.split('').reverse().join('');
 }
 
 // ---- Categories ----
@@ -112,13 +175,51 @@ export function saveUnlockedAchievements(arr) {
 }
 
 export function checkAchievements(stats, roundScores) {
-  // Add special time-based checks
   const now = new Date();
+
+  // Time-based checks
   if (now.getHours() === 0) stats.playedAtMidnight = true;
   if (now.getMonth() === 11 && now.getDate() === 25) stats.playedOnChristmas = true;
+  if (now.getMonth() === 0 && now.getDate() === 1) stats.playedOnNewYear = true;
+  if (now.getMonth() === 2 && now.getDate() === 14) stats.playedOnPiDay = true;
+  if (now.getDay() === 5 && now.getDate() === 13) stats.playedOnFriday13 = true;
 
-  // Check for zero round
+  // Nordic in winter check (Dec=11, Jan=0, Feb=1)
+  const winterMonths = [11, 0, 1];
+  const nordicCountries = ['no', 'se', 'dk', 'fi'];
+  if (winterMonths.includes(now.getMonth())) {
+    const list = stats.countriesPlayedList || [];
+    if (nordicCountries.some(c => list.includes(c))) {
+      stats.nordicInWinter = true;
+    }
+  }
+
+  // Zero round check
   if (roundScores && roundScores.some(r => r === 0)) stats.hasZeroRound = true;
+
+  // Palindrome score check
+  if (roundScores) {
+    const gameTotal = roundScores.reduce((a, b) => a + b, 0);
+    if (isPalindrome(gameTotal)) stats.palindromeScore = true;
+  }
+
+  // Duplicate scores in a game (NPC Energy)
+  // Already handled by check function
+
+  // "Sus" round — perfect streak broken by a 0
+  if (roundScores && roundScores.length >= 2) {
+    for (let i = 1; i < roundScores.length; i++) {
+      if (roundScores[i] === 0 && roundScores[i - 1] === MAX_SCORE_PER_ROUND) {
+        stats.susRound = true;
+        break;
+      }
+    }
+  }
+
+  // European countries count
+  const list = stats.countriesPlayedList || [];
+  const EUROPE_IDS = ['es','fr','de','it','gb','pt','nl','be','se','no','dk','fi','pl','cz','at','ch','ie','gr','ro','hu','bg','hr','rs','ua','sk','lt','lv','ee','si','al','ru'];
+  stats.europeanCountries = EUROPE_IDS.filter(c => list.includes(c)).length;
 
   // Save updated stats
   localStorage.setItem('ptw_stats', JSON.stringify(stats));

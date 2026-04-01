@@ -1170,3 +1170,56 @@
   .admin-main { padding: 16px; }
   .admin-dashboard-cards { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===== EASTER EGGS ===== */
+
+/* Confetti */
+.easter-confetti {
+  position: fixed; inset: 0; z-index: 99999; pointer-events: none; overflow: hidden;
+}
+.confetti-particle {
+  position: absolute; top: -40px; font-size: 24px;
+  animation: confetti-fall 2.5s ease-in forwards;
+  opacity: 0;
+}
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(100vh) rotate(720deg) scale(0.3); }
+}
+
+/* Floating F (Press F to Pay Respects) */
+.floating-f {
+  position: fixed; font-size: 28px; font-weight: 900; color: #6366f1;
+  pointer-events: none; z-index: 99998;
+  bottom: 40%; opacity: 0;
+  text-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+  transition: opacity 0.2s, transform 1.8s ease-out;
+}
+.floating-f.visible {
+  opacity: 1; transform: translateY(-200px);
+}
+
+/* Retro / Vintage mode */
+.retro-mode {
+  filter: sepia(0.8) contrast(1.1) brightness(0.9);
+  transition: filter 0.5s ease;
+}
+.retro-mode * { font-family: 'Courier New', monospace !important; }
+
+/* Easter egg toast */
+.easter-toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  color: white; padding: 12px 24px; border-radius: 12px;
+  font-size: 0.9rem; font-weight: 600; z-index: 99999;
+  opacity: 0; transition: opacity 0.3s, transform 0.3s;
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+  white-space: nowrap;
+}
+.easter-toast.visible {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+.easter-toast__icon {
+  margin-right: 6px; font-size: 1.1em;
+}

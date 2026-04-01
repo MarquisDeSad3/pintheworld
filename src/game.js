@@ -18,6 +18,7 @@ import { supabase, isDemoMode } from './supabase.js';
 import { initSubmitScreen, destroySubmitScreen } from './submissions.js';
 import { checkPremium, buyPremium, handlePaymentReturn } from './payments.js';
 import { initAds, showRewardedAd } from './ads.js';
+import { initEasterEggs, enablePressF, disablePressF } from './easter-eggs.js';
 
 const PLAYS_GUEST = 1;
 const PLAYS_SIGNED_IN = 5;
@@ -50,6 +51,7 @@ function showToast(msg, dur) {
 export async function init() {
   initI18n();
   initAds();
+  initEasterEggs();
   await initAuth();
   onAuthChange(updateAuthUI);
   updateAuthUI(getCurrentUser());
@@ -321,6 +323,10 @@ function revealResult() {
     promoCard.classList.add('hidden');
   }
 
+  // Enable "Press F" easter egg on bad scores
+  if (score < 1000) enablePressF();
+  else disablePressF();
+
   showModal('modal-result');
   $('#score-display').textContent = `${totalScore.toLocaleString()} pts`;
 }
@@ -333,6 +339,7 @@ function estimateSize(c) {
 
 function nextRound() {
   hideModal('modal-result');
+  disablePressF();
   currentRoundIndex++;
   if (currentRoundIndex >= dailyRounds.length) endGame();
   else startRound();
@@ -354,6 +361,64 @@ function endGame() {
     s.streak = (s.lastPlayDate === y) ? (s.streak || 0) + 1 : 1;
     s.lastPlayDate = today;
   }
+
+  // Track countries played as list for cultural achievements
+  if (!s.countriesPlayedList) s.countriesPlayedList = [];
+  const gameCountry = dailyRounds[0]?.countryId;
+  if (gameCountry && !s.countriesPlayedList.includes(gameCountry)) {
+    s.countriesPlayedList.push(gameCountry);
+  }
+
+  // Track countries this week
+  const weekKey = getWeekKey();
+  if (!s._weekKey || s._weekKey !== weekKey) {
+    s._weekKey = weekKey;
+    s._weekCountries = [];
+  }
+  if (gameCountry && !s._weekCountries.includes(gameCountry)) {
+    s._weekCountries.push(gameCountry);
+  }
+  s.countriesThisWeek = s._weekCountries.length;
+
+  // Columbus Day: played in ES then Americas same day
+  if (!s._todayKey || s._todayKey !== today) {
+    s._todayKey = today;
+    s._todayCountries = [];
+  }
+  if (gameCountry) s._todayCountries.push(gameCountry);
+  if (s._todayCountries.includes('es')) {
+    const AMERICAS = ['us','ca','mx','cu','br','ar','co','cl','pe','ve','ec','bo','py','uy','cr','pa','do','gt','hn','sv','ni','pr','jm','ht','tt'];
+    if (s._todayCountries.some(c => AMERICAS.includes(c))) {
+      s.columbusDay = true;
+    }
+  }
+
+  // Win streak (40k+ games in a row)
+  if (totalScore >= 40000) {
+    s.winStreak = (s.winStreak || 0) + 1;
+  } else {
+    s.winStreak = 0;
+  }
+
+  // Improving streak (score better than previous game)
+  if (s.lastGameScore !== undefined && totalScore > s.lastGameScore) {
+    s.improvingStreak = (s.improvingStreak || 0) + 1;
+  } else {
+    s.improvingStreak = 0;
+  }
+  s.lastGameScore = totalScore;
+
+  // Fail streak (rounds with < 500 in this game — track max consecutive)
+  let maxFail = 0, curFail = 0;
+  roundScores.forEach(r => {
+    if (r < 500) { curFail++; maxFail = Math.max(maxFail, curFail); }
+    else curFail = 0;
+  });
+  s.failStreak = Math.max(s.failStreak || 0, maxFail);
+
+  // Wrong country streak
+  // (tracked per-round in revealResult, stored on stats)
+
   saveLocalStats(s);
   const prevLevel = getLevel(prevScore);
   const li = getLevelProgress(s.totalScore);
@@ -516,6 +581,13 @@ function getDemoRounds(mode) {
     {lat:31.7683,lng:35.2137,locationName:'Western Wall',country:'Israel',countryId:'il',subdivisionId:'il_jerusalem',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Western_Wall_2.jpg/600px-Western_Wall_2.jpg'},
     {lat:37.9715,lng:23.7257,locationName:'Acropolis',country:'Greece',countryId:'gr',subdivisionId:'gr_attica',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/AthenaeumAcropolis.jpg/600px-AthenaeumAcropolis.jpg'},
   ].map((l,i) => ({...l, id:`d${i}`, mode, isPromo:false}));
+}
+
+function getWeekKey() {
+  const d = new Date();
+  const start = new Date(d.getFullYear(), 0, 1);
+  const week = Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
+  return `${d.getFullYear()}-W${week}`;
 }
 
 function getDailyPlays() { try { const d=JSON.parse(localStorage.getItem(`ptw_plays_${gameMode}`)); return d?.date===new Date().toDateString()?d.count:0; } catch{return 0;} }
