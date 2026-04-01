@@ -51,6 +51,42 @@
 .create-levels-btn:hover { background: rgba(16, 185, 129, 0.25); border-color: #10b981; }
 .create-levels-btn svg { width: 14px; height: 14px; }
 
+/* Premium banner */
+.premium-banner {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  margin-top: 12px; padding: 8px 16px;
+  background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 20px; font-size: 0.8rem; color: var(--accent);
+}
+.premium-banner.hidden { display: none; }
+.premium-btn {
+  background: var(--accent); color: #000; border: none;
+  padding: 4px 14px; border-radius: 12px; font-size: 0.75rem;
+  font-weight: 700; cursor: pointer; font-family: var(--font);
+  transition: all 0.15s;
+}
+.premium-btn:hover { transform: scale(1.05); }
+
+/* Home footer */
+.home-footer {
+  display: flex; justify-content: center; align-items: center; gap: 16px;
+  margin-top: 16px; font-size: 0.7rem;
+}
+.footer-links { display: flex; gap: 6px; }
+.footer-links a { color: var(--text-dim); text-decoration: none; }
+.footer-links a:hover { color: var(--text); }
+.footer-links span { color: rgba(255,255,255,0.2); }
+
+.lang-selector { display: flex; gap: 2px; }
+.lang-btn {
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-dim); padding: 3px 10px; border-radius: 10px;
+  font-size: 0.7rem; cursor: pointer; font-family: var(--font); font-weight: 600;
+  transition: all 0.1s;
+}
+.lang-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+.lang-btn:hover { border-color: var(--primary); }
+
 /* Play bar */
 .play-bar {
   display: flex;
