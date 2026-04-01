@@ -19,6 +19,7 @@ import { initSubmitScreen, destroySubmitScreen } from './submissions.js';
 import { checkPremium, buyPremium, handlePaymentReturn } from './payments.js';
 import { initAds, showRewardedAd } from './ads.js';
 import { initEasterEggs, enablePressF, disablePressF } from './easter-eggs.js';
+import { SEED_ROUNDS } from './seed-rounds.js';
 
 const PLAYS_GUEST = 1;
 const PLAYS_SIGNED_IN = 5;
@@ -549,7 +550,7 @@ async function loadRounds(mode) {
 }
 
 function getDemoRounds(mode) {
-  return [
+  const base = [
     {lat:48.8584,lng:2.2945,locationName:'Eiffel Tower',country:'France',countryId:'fr',subdivisionId:'fr___le_de_france',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/600px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg'},
     {lat:41.8902,lng:12.4922,locationName:'Colosseum',country:'Italy',countryId:'it',subdivisionId:'it_lazio',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/600px-Colosseo_2020.jpg'},
     {lat:51.5014,lng:-0.1419,locationName:'Big Ben',country:'United Kingdom',countryId:'gb',subdivisionId:'gb_greater_london',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Clock_Tower_-_Palace_of_Westminster%2C_London_-_May_2007.jpg/600px-Clock_Tower_-_Palace_of_Westminster%2C_London_-_May_2007.jpg'},
@@ -581,6 +582,24 @@ function getDemoRounds(mode) {
     {lat:31.7683,lng:35.2137,locationName:'Western Wall',country:'Israel',countryId:'il',subdivisionId:'il_jerusalem',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Western_Wall_2.jpg/600px-Western_Wall_2.jpg'},
     {lat:37.9715,lng:23.7257,locationName:'Acropolis',country:'Greece',countryId:'gr',subdivisionId:'gr_attica',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/AthenaeumAcropolis.jpg/600px-AthenaeumAcropolis.jpg'},
   ].map((l,i) => ({...l, id:`d${i}`, mode, isPromo:false}));
+
+  // Merge seed rounds (avoid duplicates by locationName)
+  const existing = new Set(base.map(r => r.locationName));
+  const extra = SEED_ROUNDS
+    .filter(r => !existing.has(r.locationName))
+    .map((r, i) => ({
+      id: `s${i}`,
+      lat: 0, lng: 0,
+      locationName: r.locationName,
+      country: r.countryName,
+      countryId: r.countryId,
+      subdivisionId: r.subdivisionId,
+      photoUrl: r.photoUrl,
+      mode,
+      isPromo: false,
+    }));
+
+  return [...base, ...extra];
 }
 
 function getWeekKey() {
