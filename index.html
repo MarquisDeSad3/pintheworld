@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PinTheWorld</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/css/main.css" />
+  <link rel="stylesheet" href="/css/game.css" />
+  <link rel="stylesheet" href="/css/map.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <header id="header">
+      <div class="header-left">
+        <button id="btn-back" class="header-btn hidden" title="Back">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <h1 class="logo">Pin<span>The</span>World</h1>
+      </div>
+      <div class="header-center">
+        <div id="level-badge" class="level-badge hidden">
+          <span id="level-icon"></span>
+          <span id="level-name"></span>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="btn-leaderboard" class="header-btn" title="Leaderboard">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01z"/></svg>
+        </button>
+        <button id="btn-profile" class="header-btn" title="Profile">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </button>
+        <button id="btn-admin" class="header-btn hidden" title="Admin">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </button>
+        <button id="btn-auth" class="header-btn">Sign In</button>
+      </div>
+    </header>
+
+    <!-- Screen: World Map (Country Selection) -->
+    <section id="screen-world" class="screen">
+      <div id="home-map" class="home-map-bg"></div>
+      <div class="world-hero">
+        <h2>Pin<span style="color:var(--primary)">The</span>World</h2>
+        <p>Drop a pin. Guess the location. How close can you get?</p>
+        <div class="play-bar">
+          <button id="btn-play-places" class="play-bar-btn selected" data-mode="places">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Places
+          </button>
+          <button id="btn-play-people" class="play-bar-btn" data-mode="people">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            People
+          </button>
+          <button id="btn-play-go" class="play-go-btn">Play</button>
+        </div>
+        <button id="btn-create-levels" class="create-levels-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Help us create levels!
+        </button>
+      </div>
+    </section>
+
+    <!-- Screen: Level Creator -->
+    <section id="screen-submit" class="screen">
+      <div class="submit-container">
+        <div id="submit-map-area" class="submit-map-area">
+          <div id="submit-map"></div>
+        </div>
+        <div class="submit-panel">
+          <h2 class="submit-title">Create a Level</h2>
+          <p class="submit-subtitle">Upload a photo and pin its location</p>
+
+          <!-- Photo upload -->
+          <div class="submit-field">
+            <label>Photo</label>
+            <div id="photo-upload" class="photo-upload">
+              <input type="file" id="photo-input" accept="image/*" />
+              <div class="photo-upload-placeholder">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span>Click or drag photo here</span>
+                <span class="photo-hint">Max 5MB — JPG, PNG, WebP</span>
+              </div>
+              <img id="photo-preview" class="photo-preview" />
+            </div>
+            <div class="photo-or">
+              <span>or</span>
+              <input type="url" id="photo-url" placeholder="Paste image URL..." class="submit-input" />
+            </div>
+          </div>
+
+          <!-- Mode -->
+          <div class="submit-field">
+            <label>Type</label>
+            <div class="submit-mode-btns">
+              <button class="submit-mode-btn selected" data-mode="places">Places</button>
+              <button class="submit-mode-btn" data-mode="people">People</button>
+            </div>
+          </div>
+
+          <!-- Location (selected on map) -->
+          <div class="submit-field">
+            <label>Location</label>
+            <div id="submit-location" class="submit-location">
+              <span id="submit-location-text">Click the map to select country, then region</span>
+            </div>
+          </div>
+
+          <!-- Submitter name -->
+          <div class="submit-field">
+            <label>Your name (optional)</label>
+            <input type="text" id="submit-name" placeholder="Anonymous" maxlength="50" class="submit-input" />
+          </div>
+
+          <!-- Promo toggle -->
+          <div class="submit-field">
+            <div class="promo-toggle">
+              <label class="toggle-label">
+                <input type="checkbox" id="promo-toggle" />
+                <span class="toggle-switch"></span>
+                <span class="toggle-text">Promote your business / profile</span>
+              </label>
+              <span class="promo-price" id="promo-price"></span>
+            </div>
+          </div>
+
+          <!-- Promo section (hidden by default) -->
+          <div id="promo-section" class="promo-section hidden">
+            <div class="promo-section-header">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01z"/></svg>
+              Your ad will appear when players see this level
+            </div>
+            <div class="submit-field">
+              <label>Business / Profile name *</label>
+              <input type="text" id="promo-name-input" placeholder="Your business name" maxlength="40" class="submit-input" />
+            </div>
+            <div class="submit-field">
+              <label>Description *</label>
+              <textarea id="promo-bio-input" placeholder="Tell people about your business or yourself..." maxlength="150" class="submit-input submit-textarea"></textarea>
+              <span id="promo-bio-count" class="char-count">0 / 150</span>
+            </div>
+            <div class="submit-field">
+              <label>Instagram</label>
+              <input type="text" id="promo-instagram" placeholder="@yourbusiness" maxlength="50" class="submit-input" />
+            </div>
+            <div class="submit-field">
+              <label>WhatsApp</label>
+              <input type="text" id="promo-whatsapp" placeholder="+1 234 567 8900" maxlength="20" class="submit-input" />
+            </div>
+            <div class="submit-field">
+              <label>Website</label>
+              <input type="url" id="promo-website" placeholder="https://yourbusiness.com" class="submit-input" />
+            </div>
+            <div class="submit-field">
+              <label>Phone</label>
+              <input type="tel" id="promo-phone" placeholder="+1 234 567 8900" maxlength="20" class="submit-input" />
+            </div>
+            <div class="promo-preview">
+              <div class="promo-preview-label">Preview</div>
+              <div class="promo-preview-card">
+                <div id="promo-preview-name" class="promo-preview-name">Your Business</div>
+                <div id="promo-preview-bio" class="promo-preview-bio">Your description here...</div>
+                <div id="promo-preview-links" class="promo-preview-links"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Submit button -->
+          <button id="btn-submit-level" class="btn-primary" disabled>Submit Level (Free)</button>
+          <div id="submit-status" class="submit-status"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen: Country Landing (Mode Selection) -->
+    <section id="screen-landing" class="screen">
+      <div class="landing-card">
+        <div class="country-header">
+          <span id="country-flag" class="country-flag"></span>
+          <h2 id="country-name"></h2>
+          <p id="country-subdivision-type"></p>
+        </div>
+        <div class="mode-buttons">
+          <button id="btn-mode-personas" class="mode-btn">
+            <span class="mode-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </span>
+            <span class="mode-label">People</span>
+            <span class="mode-desc">Guess where this person is from</span>
+          </button>
+          <button id="btn-mode-lugares" class="mode-btn">
+            <span class="mode-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </span>
+            <span class="mode-label">Places</span>
+            <span class="mode-desc">Guess where this place is</span>
+          </button>
+        </div>
+        <div class="play-options">
+          <button id="btn-play-solo" class="btn-primary">Play Solo</button>
+          <div class="multi-row">
+            <button id="btn-create-room" class="btn-secondary">Create Room</button>
+            <div class="join-row">
+              <input type="text" id="input-room-code" placeholder="Room code" maxlength="6" />
+              <button id="btn-join-room" class="btn-secondary">Join</button>
+            </div>
+          </div>
+        </div>
+        <div id="daily-plays-info" class="daily-plays-info"></div>
+      </div>
+    </section>
+
+    <!-- Screen: Waiting Room (Multiplayer) -->
+    <section id="screen-waiting" class="screen">
+      <div class="waiting-card">
+        <h2>Waiting Room</h2>
+        <div id="room-code-display" class="room-code-display"></div>
+        <p class="waiting-text">Share this code with friends</p>
+        <div id="players-list" class="players-list"></div>
+        <button id="btn-start-game" class="btn-primary hidden">Start Game</button>
+        <button id="btn-leave-room" class="btn-secondary">Leave</button>
+      </div>
+    </section>
+
+    <!-- Screen: Game (immersive — map fills screen, photo floats) -->
+    <section id="screen-game" class="screen">
+      <div class="game-top">
+        <div class="game-info">
+          <span id="round-counter">1 / 10</span>
+          <span id="score-display">0 pts</span>
+          <span id="timer-display" class="hidden">30s</span>
+        </div>
+        <div id="round-photo-container" class="photo-container">
+          <img id="round-photo" src="" alt="Guess this!" />
+        </div>
+        <div id="promo-card" class="promo-card hidden">
+          <div id="promo-name" class="promo-name"></div>
+          <div id="promo-bio" class="promo-bio"></div>
+          <div id="promo-links" class="promo-links"></div>
+        </div>
+      </div>
+      <div class="game-bottom">
+        <div id="game-map-container" class="map-container">
+          <div id="game-map"></div>
+        </div>
+        <div id="phase-indicator" class="phase-indicator hidden"></div>
+        <div id="selected-info" class="selected-info hidden">
+          <span id="selected-name"></span>
+        </div>
+        <button id="btn-confirm" class="btn-primary" disabled>Confirm Country</button>
+      </div>
+    </section>
+
+    <!-- Screen: Admin Panel -->
+    <section id="screen-admin" class="screen">
+      <div class="admin-layout">
+        <!-- Sidebar -->
+        <nav class="admin-sidebar">
+          <div class="admin-sidebar-header">
+            <span class="admin-logo">PTW Admin</span>
+          </div>
+          <button class="admin-nav active" data-tab="dashboard">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            Dashboard
+          </button>
+          <button class="admin-nav" data-tab="pending">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Pending <span id="nav-pending-badge" class="admin-nav-badge">0</span>
+          </button>
+          <button class="admin-nav" data-tab="rounds">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            Active Rounds <span id="nav-active-badge" class="admin-nav-badge">0</span>
+          </button>
+          <button class="admin-nav" data-tab="promos-people">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Promos People
+          </button>
+          <button class="admin-nav" data-tab="promos-places">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            Promos Business
+          </button>
+          <button class="admin-nav" data-tab="revenue">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Revenue
+          </button>
+          <button class="admin-nav" data-tab="users">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Users
+          </button>
+          <button class="admin-nav" data-tab="create">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Create Round
+          </button>
+        </nav>
+
+        <!-- Main content -->
+        <div class="admin-main">
+          <!-- Dashboard -->
+          <div id="admin-tab-dashboard" class="admin-tab-content active">
+            <h2 class="admin-page-title">Dashboard</h2>
+            <div class="admin-dashboard-cards">
+              <div class="dash-card">
+                <div class="dash-card-value" id="dash-total-rounds">0</div>
+                <div class="dash-card-label">Total Rounds</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-value" id="dash-pending">0</div>
+                <div class="dash-card-label">Pending</div>
+              </div>
+              <div class="dash-card accent">
+                <div class="dash-card-value" id="dash-revenue">$0</div>
+                <div class="dash-card-label">Revenue</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-value" id="dash-users">0</div>
+                <div class="dash-card-label">Users</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-value" id="dash-promos">0</div>
+                <div class="dash-card-label">Active Promos</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-value" id="dash-countries">86</div>
+                <div class="dash-card-label">Countries</div>
+              </div>
+            </div>
+            <h3 class="admin-section-title">Recent Activity</h3>
+            <div id="dash-recent" class="admin-list"><div class="admin-empty">No recent activity</div></div>
+          </div>
+
+          <!-- Pending -->
+          <div id="admin-tab-pending" class="admin-tab-content">
+            <h2 class="admin-page-title">Pending Submissions</h2>
+            <div class="admin-filters">
+              <select id="pending-filter-mode" class="admin-select"><option value="">All</option><option value="places">Places</option><option value="people">People</option></select>
+            </div>
+            <div id="admin-pending-list" class="admin-list"><div class="admin-empty">No pending submissions</div></div>
+          </div>
+
+          <!-- Active Rounds -->
+          <div id="admin-tab-rounds" class="admin-tab-content">
+            <h2 class="admin-page-title">Active Rounds</h2>
+            <div class="admin-filters">
+              <select id="admin-filter-country" class="admin-select"><option value="">All countries</option></select>
+              <select id="admin-filter-mode" class="admin-select"><option value="">All modes</option><option value="places">Places</option><option value="people">People</option></select>
+            </div>
+            <div id="admin-active-list" class="admin-list"><div class="admin-empty">No active rounds</div></div>
+          </div>
+
+          <!-- Promos People -->
+          <div id="admin-tab-promos-people" class="admin-tab-content">
+            <h2 class="admin-page-title">Promos — People (Cupido)</h2>
+            <p class="admin-page-desc">Promoted profiles that appear in People mode. Shows their photo, bio, Instagram, and social links.</p>
+            <div id="admin-promos-people-list" class="admin-list"><div class="admin-empty">No people promos</div></div>
+          </div>
+
+          <!-- Promos Business -->
+          <div id="admin-tab-promos-places" class="admin-tab-content">
+            <h2 class="admin-page-title">Promos — Business</h2>
+            <p class="admin-page-desc">Promoted businesses that appear in Places mode. Shows their business info and contact details.</p>
+            <div id="admin-promos-places-list" class="admin-list"><div class="admin-empty">No business promos</div></div>
+          </div>
+
+          <!-- Revenue -->
+          <div id="admin-tab-revenue" class="admin-tab-content">
+            <h2 class="admin-page-title">Revenue</h2>
+            <div class="admin-dashboard-cards">
+              <div class="dash-card accent">
+                <div class="dash-card-value" id="rev-total">$0.00</div>
+                <div class="dash-card-label">Total Revenue</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-value" id="rev-month">$0.00</div>
+                <div class="dash-card-label">This Month</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-value" id="rev-people">$0.00</div>
+                <div class="dash-card-label">People Promos</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-value" id="rev-places">$0.00</div>
+                <div class="dash-card-label">Business Promos</div>
+              </div>
+            </div>
+            <h3 class="admin-section-title">Transactions</h3>
+            <div id="admin-transactions" class="admin-list"><div class="admin-empty">No transactions yet</div></div>
+          </div>
+
+          <!-- Users -->
+          <div id="admin-tab-users" class="admin-tab-content">
+            <h2 class="admin-page-title">Users</h2>
+            <div id="admin-users-list" class="admin-list"><div class="admin-empty">No users yet</div></div>
+          </div>
+
+          <!-- Create Round -->
+          <div id="admin-tab-create" class="admin-tab-content">
+            <h2 class="admin-page-title">Create Round</h2>
+            <div class="admin-create-form">
+              <div class="submit-field">
+                <label>Photo URL</label>
+                <input type="url" id="admin-photo-url" placeholder="https://..." class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>Country ID (e.g. us, fr, cu)</label>
+                <input type="text" id="admin-country-id" placeholder="us" maxlength="2" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>Subdivision ID</label>
+                <input type="text" id="admin-subdiv-id" placeholder="e.g. california" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>Subdivision Name</label>
+                <input type="text" id="admin-subdiv-name" placeholder="California" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>Location Name</label>
+                <input type="text" id="admin-location-name" placeholder="Golden Gate Bridge, San Francisco" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>Mode</label>
+                <div class="submit-mode-btns">
+                  <button class="admin-mode-btn selected" data-mode="places">Places</button>
+                  <button class="admin-mode-btn" data-mode="people">People</button>
+                </div>
+              </div>
+              <div class="submit-field">
+                <label>Latitude</label>
+                <input type="number" id="admin-lat" step="any" placeholder="37.8199" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>Longitude</label>
+                <input type="number" id="admin-lng" step="any" placeholder="-122.4783" class="submit-input" />
+              </div>
+              <button id="btn-admin-create" class="btn-primary">Create Round</button>
+              <div id="admin-create-status" class="submit-status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modal: Round Result -->
+    <div id="modal-result" class="modal hidden">
+      <div class="modal-content result-modal">
+        <div id="result-icon" class="result-icon"></div>
+        <div id="result-score" class="result-score"></div>
+        <div id="result-detail" class="result-detail"></div>
+        <div id="result-distance" class="result-distance"></div>
+        <div id="result-funfact" class="result-funfact hidden"></div>
+        <button id="btn-next-round" class="btn-primary">Next Round</button>
+      </div>
+    </div>
+
+    <!-- Modal: Game Over -->
+    <div id="modal-gameover" class="modal hidden">
+      <div class="modal-content gameover-modal">
+        <h2>Game Over!</h2>
+        <div id="gameover-score" class="gameover-score"></div>
+        <div id="gameover-xp" class="gameover-xp"></div>
+        <div id="gameover-level" class="gameover-level"></div>
+        <div id="gameover-breakdown" class="gameover-breakdown"></div>
+        <div class="gameover-actions">
+          <button id="btn-share" class="btn-secondary">Share</button>
+          <button id="btn-play-again" class="btn-primary">Play Again</button>
+          <button id="btn-change-country" class="btn-secondary">Change Country</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Leaderboard -->
+    <div id="modal-leaderboard" class="modal hidden">
+      <div class="modal-content leaderboard-modal">
+        <div class="modal-header">
+          <h2>Leaderboard</h2>
+          <button class="modal-close" data-close="modal-leaderboard">&times;</button>
+        </div>
+        <div class="leaderboard-tabs">
+          <button class="lb-tab active" data-tab="country">Country</button>
+          <button class="lb-tab" data-tab="global">Global</button>
+        </div>
+        <div id="leaderboard-content" class="leaderboard-content"></div>
+      </div>
+    </div>
+
+    <!-- Modal: Profile -->
+    <div id="modal-profile" class="modal hidden">
+      <div class="modal-content profile-modal">
+        <div class="modal-header">
+          <h2>Profile</h2>
+          <button class="modal-close" data-close="modal-profile">&times;</button>
+        </div>
+        <div id="profile-content" class="profile-content"></div>
+      </div>
+    </div>
+
+    <!-- Achievement Popup Container -->
+    <div id="achievement-container"></div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
