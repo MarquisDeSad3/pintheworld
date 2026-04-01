@@ -65,115 +65,146 @@
       </div>
     </section>
 
-    <!-- Screen: Level Creator -->
+    <!-- Screen: Level Creator (Wizard) -->
     <section id="screen-submit" class="screen">
-      <div class="submit-container">
-        <div id="submit-map-area" class="submit-map-area">
-          <div id="submit-map"></div>
+      <div class="wizard-container">
+        <!-- Progress bar -->
+        <div class="wizard-progress">
+          <div class="wizard-step active" data-step="1"><span>1</span> Photo</div>
+          <div class="wizard-step" data-step="2"><span>2</span> Location</div>
+          <div class="wizard-step" data-step="3"><span>3</span> Details</div>
+          <div class="wizard-step" data-step="4"><span>4</span> Confirm</div>
         </div>
-        <div class="submit-panel">
-          <h2 class="submit-title">Create a Level</h2>
-          <p class="submit-subtitle">Upload a photo and pin its location</p>
 
-          <!-- Photo upload -->
-          <div class="submit-field">
-            <label>Photo</label>
-            <div id="photo-upload" class="photo-upload">
-              <input type="file" id="photo-input" accept="image/*" />
-              <div class="photo-upload-placeholder">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                <span>Click or drag photo here</span>
-                <span class="photo-hint">Max 5MB — JPG, PNG, WebP</span>
-              </div>
-              <img id="photo-preview" class="photo-preview" />
-            </div>
-            <div class="photo-or">
-              <span>or</span>
-              <input type="url" id="photo-url" placeholder="Paste image URL..." class="submit-input" />
-            </div>
-          </div>
-
-          <!-- Mode -->
-          <div class="submit-field">
-            <label>Type</label>
-            <div class="submit-mode-btns">
+        <!-- Step 1: Photo + Mode -->
+        <div id="wizard-step-1" class="wizard-page active">
+          <div class="wizard-content">
+            <h2>Upload a photo</h2>
+            <p class="wizard-desc">This is what players will see and try to guess the location of</p>
+            <div class="submit-mode-btns" style="margin-bottom:16px">
               <button class="submit-mode-btn selected" data-mode="places">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-                Business / Place
+                Place / Business
               </button>
               <button class="submit-mode-btn" data-mode="people">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                Cupido / Person
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Person / Cupido
               </button>
             </div>
             <span id="submit-mode-hint" class="submit-mode-hint">Promote a business or place</span>
-          </div>
-
-          <!-- Location (selected on map) -->
-          <div class="submit-field">
-            <label>Location</label>
-            <div id="submit-location" class="submit-location">
-              <span id="submit-location-text">Click the map to select country, then region</span>
+            <div id="photo-upload" class="photo-upload-wizard">
+              <input type="file" id="photo-input" accept="image/*" />
+              <div class="photo-upload-placeholder">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                <span>Click or drag a photo</span>
+                <span class="photo-hint">Max 5MB — JPG, PNG, WebP</span>
+              </div>
+              <img id="photo-preview" class="photo-preview-wizard" />
+            </div>
+            <div class="photo-or">
+              <span>or paste URL</span>
+              <input type="url" id="photo-url" placeholder="https://..." class="submit-input" />
             </div>
           </div>
-
-          <!-- Submitter name -->
-          <div class="submit-field">
-            <label>Your name (optional)</label>
-            <input type="text" id="submit-name" placeholder="Anonymous" maxlength="50" class="submit-input" />
+          <div class="wizard-nav">
+            <div></div>
+            <button id="wizard-next-1" class="btn-primary" disabled>Next: Location</button>
           </div>
+        </div>
 
-          <!-- Promo toggle -->
-          <div class="submit-field">
-            <div class="promo-toggle">
-              <label class="toggle-label">
-                <input type="checkbox" id="promo-toggle" />
-                <span class="toggle-switch"></span>
-                <span id="promo-toggle-text" class="toggle-text">Promote your business</span>
-              </label>
-              <span class="promo-price" id="promo-price"></span>
+        <!-- Step 2: Location (fullscreen map) -->
+        <div id="wizard-step-2" class="wizard-page">
+          <div id="submit-map" class="wizard-map"></div>
+          <div id="submit-location-bar" class="wizard-location-bar">
+            <span id="submit-location-text">Select a country, then a region</span>
+          </div>
+          <div class="wizard-nav wizard-nav-over-map">
+            <button id="wizard-back-2" class="btn-secondary">Back</button>
+            <button id="wizard-next-2" class="btn-primary" disabled>Next: Details</button>
+          </div>
+        </div>
+
+        <!-- Step 3: Details + Promo -->
+        <div id="wizard-step-3" class="wizard-page">
+          <div class="wizard-content">
+            <h2>Details</h2>
+            <div class="submit-field">
+              <label>Your name (optional)</label>
+              <input type="text" id="submit-name" placeholder="Anonymous" maxlength="50" class="submit-input" />
+            </div>
+            <!-- Promo toggle -->
+            <div class="submit-field" style="margin-top:16px">
+              <div class="promo-toggle">
+                <label class="toggle-label">
+                  <input type="checkbox" id="promo-toggle" />
+                  <span class="toggle-switch"></span>
+                  <span id="promo-toggle-text" class="toggle-text">Promote your business</span>
+                </label>
+                <span class="promo-price" id="promo-price">$29.99 USD</span>
+              </div>
+            </div>
+            <!-- Promo fields -->
+            <div id="promo-section" class="promo-section hidden">
+              <div id="promo-section-header" class="promo-section-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01z"/></svg>
+                <span id="promo-header-text">Your ad will appear when players see this level</span>
+              </div>
+              <div class="submit-field">
+                <label id="promo-name-label">Business name *</label>
+                <input type="text" id="promo-name-input" placeholder="Your business name" maxlength="40" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label id="promo-bio-label">Description *</label>
+                <textarea id="promo-bio-input" placeholder="Tell people about your business..." maxlength="150" class="submit-input submit-textarea"></textarea>
+                <span id="promo-bio-count" class="char-count">0 / 150</span>
+              </div>
+              <div class="submit-field">
+                <label>Instagram *</label>
+                <input type="text" id="promo-instagram" placeholder="@yourbusiness" maxlength="50" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>WhatsApp</label>
+                <input type="text" id="promo-whatsapp" placeholder="+1 234 567 8900" maxlength="20" class="submit-input" />
+              </div>
+              <div id="field-telegram" class="submit-field hidden">
+                <label>Telegram</label>
+                <input type="text" id="promo-telegram" placeholder="@username" maxlength="50" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>Website</label>
+                <input type="url" id="promo-website" placeholder="https://yourbusiness.com" class="submit-input" />
+              </div>
+              <div class="submit-field">
+                <label>Phone</label>
+                <input type="tel" id="promo-phone" placeholder="+1 234 567 8900" maxlength="20" class="submit-input" />
+              </div>
             </div>
           </div>
+          <div class="wizard-nav">
+            <button id="wizard-back-3" class="btn-secondary">Back</button>
+            <button id="wizard-skip-3" class="btn-skip">Skip — no promo</button>
+            <button id="wizard-next-3" class="btn-primary">Next: Preview</button>
+          </div>
+        </div>
 
-          <!-- Promo section (hidden by default) -->
-          <div id="promo-section" class="promo-section hidden">
-            <div id="promo-section-header" class="promo-section-header">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01z"/></svg>
-              <span id="promo-header-text">Your ad will appear when players see this level</span>
+        <!-- Step 4: Preview + Submit -->
+        <div id="wizard-step-4" class="wizard-page">
+          <div class="wizard-content">
+            <h2>Preview & Submit</h2>
+            <p class="wizard-desc">This is how your level will look in the game</p>
+            <div class="wizard-final-preview">
+              <div class="wizard-preview-photo">
+                <img id="final-preview-photo" src="" />
+              </div>
+              <div class="wizard-preview-info">
+                <div id="final-preview-location" class="wizard-preview-location"></div>
+                <div id="final-preview-mode" class="wizard-preview-mode"></div>
+                <div id="final-preview-submitter" class="wizard-preview-submitter"></div>
+              </div>
             </div>
-            <div class="submit-field">
-              <label id="promo-name-label">Business name *</label>
-              <input type="text" id="promo-name-input" placeholder="Your business name" maxlength="40" class="submit-input" />
-            </div>
-            <div class="submit-field">
-              <label id="promo-bio-label">Description *</label>
-              <textarea id="promo-bio-input" placeholder="Tell people about your business..." maxlength="150" class="submit-input submit-textarea"></textarea>
-              <span id="promo-bio-count" class="char-count">0 / 150</span>
-            </div>
-            <div class="submit-field">
-              <label>Instagram *</label>
-              <input type="text" id="promo-instagram" placeholder="@yourbusiness" maxlength="50" class="submit-input" />
-            </div>
-            <div class="submit-field">
-              <label>WhatsApp</label>
-              <input type="text" id="promo-whatsapp" placeholder="+1 234 567 8900" maxlength="20" class="submit-input" />
-            </div>
-            <div id="field-telegram" class="submit-field hidden">
-              <label>Telegram</label>
-              <input type="text" id="promo-telegram" placeholder="@username" maxlength="50" class="submit-input" />
-            </div>
-            <div class="submit-field">
-              <label>Website</label>
-              <input type="url" id="promo-website" placeholder="https://yourbusiness.com" class="submit-input" />
-            </div>
-            <div class="submit-field">
-              <label>Phone</label>
-              <input type="tel" id="promo-phone" placeholder="+1 234 567 8900" maxlength="20" class="submit-input" />
-            </div>
-
-            <!-- Live preview card -->
-            <div class="promo-preview">
-              <div class="promo-preview-label">PREVIEW — This is what players will see</div>
+            <!-- Promo preview card -->
+            <div id="final-promo-preview" class="hidden">
+              <div class="promo-preview-label">PROMO CARD — Players see this after guessing</div>
               <div id="promo-preview-card" class="promo-preview-card">
                 <div class="promo-preview-photo-area">
                   <img id="promo-preview-photo" class="promo-preview-photo" src="" />
@@ -181,16 +212,17 @@
                 </div>
                 <div class="promo-preview-info">
                   <div id="promo-preview-name" class="promo-preview-name">Your Name</div>
-                  <div id="promo-preview-bio" class="promo-preview-bio">Your description here...</div>
+                  <div id="promo-preview-bio" class="promo-preview-bio">Description...</div>
                   <div id="promo-preview-links" class="promo-preview-links"></div>
                 </div>
               </div>
             </div>
+            <div id="submit-status" class="submit-status"></div>
           </div>
-
-          <!-- Submit button -->
-          <button id="btn-submit-level" class="btn-primary" disabled>Submit Level (Free)</button>
-          <div id="submit-status" class="submit-status"></div>
+          <div class="wizard-nav">
+            <button id="wizard-back-4" class="btn-secondary">Back</button>
+            <button id="btn-submit-level" class="btn-primary">Submit Level (Free)</button>
+          </div>
         </div>
       </div>
     </section>
