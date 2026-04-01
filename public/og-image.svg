@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#0f0f14"/>
+  <!-- Subtle globe -->
+  <circle cx="600" cy="350" r="250" fill="none" stroke="#6366f1" stroke-width="2" opacity="0.15"/>
+  <ellipse cx="600" cy="350" rx="250" ry="90" fill="none" stroke="#6366f1" stroke-width="1.5" opacity="0.1"/>
+  <ellipse cx="600" cy="350" rx="160" ry="250" fill="none" stroke="#6366f1" stroke-width="1.5" opacity="0.1"/>
+  <!-- Pin -->
+  <g transform="translate(600, 280)">
+    <path d="M0-140 C-60-140 -95-100 -95-60 C-95 0 0 140 0 140 C0 140 95 0 95-60 C95-100 60-140 0-140Z" fill="#f59e0b"/>
+    <circle cx="0" cy="-60" r="35" fill="#0f0f14"/>
+    <circle cx="0" cy="-60" r="14" fill="#f59e0b" opacity="0.6"/>
+  </g>
+  <!-- Text -->
+  <text x="600" y="510" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="64" font-weight="800" fill="#e5e5ef">
+    Pin<tspan fill="#6366f1">The</tspan>World
+  </text>
+  <text x="600" y="560" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="24" fill="#9ca3af">
+    Drop a pin. Guess the location. How close can you get?
+  </text>
+</svg>

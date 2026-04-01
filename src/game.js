@@ -17,6 +17,7 @@ import { initI18n, setLang, t } from './i18n.js';
 import { supabase, isDemoMode } from './supabase.js';
 import { initSubmitScreen, destroySubmitScreen } from './submissions.js';
 import { checkPremium, buyPremium, handlePaymentReturn } from './payments.js';
+import { initAds, showRewardedAd } from './ads.js';
 
 const PLAYS_GUEST = 1;
 const PLAYS_SIGNED_IN = 5;
@@ -30,6 +31,7 @@ let currentRoundIndex = 0;
 let totalScore = 0;
 let roundScores = [];
 let guessedCountryId = null;
+let adPlayGranted = false;
 
 // ---- Screens ----
 function showScreen(id) {
@@ -47,6 +49,7 @@ function showToast(msg, dur) {
 // ---- Init ----
 export async function init() {
   initI18n();
+  initAds();
   await initAuth();
   onAuthChange(updateAuthUI);
   updateAuthUI(getCurrentUser());
@@ -120,7 +123,7 @@ async function startGame(mode) {
   gameMode = mode;
   // Check play limits
   const isPremium = await checkPremium();
-  if (!isPremium) {
+  if (!isPremium && !adPlayGranted) {
     const plays = getDailyPlays();
     const limit = isSignedIn() ? PLAYS_SIGNED_IN : PLAYS_GUEST;
     if (plays >= limit) {
@@ -132,6 +135,7 @@ async function startGame(mode) {
       return;
     }
   }
+  adPlayGranted = false;
 
   const allRounds = await loadRounds(mode);
   dailyRounds = selectDailyRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length));
@@ -464,7 +468,15 @@ function showPremiumModal() {
       <button id="btn-buy-premium" class="btn-primary" style="width:100%;padding:14px;font-size:16px;font-weight:700">
         Unlock Unlimited Plays
       </button>
-      <button id="btn-close-premium" class="btn-secondary" style="width:100%;margin-top:8px;padding:10px">
+      <div style="display:flex;align-items:center;gap:12px;margin:16px 0 8px">
+        <div style="flex:1;height:1px;background:#333"></div>
+        <span style="color:#666;font-size:13px">or</span>
+        <div style="flex:1;height:1px;background:#333"></div>
+      </div>
+      <button id="btn-watch-ad" class="btn-secondary" style="width:100%;padding:12px;font-size:14px">
+        Watch Ad for +1 Play
+      </button>
+      <button id="btn-close-premium" class="btn-secondary" style="width:100%;margin-top:8px;padding:10px;opacity:0.6">
         Maybe Later
       </button>
     </div>`;
@@ -478,6 +490,21 @@ function showPremiumModal() {
       showToast('Could not start checkout. Try again.');
       $('#btn-buy-premium').disabled = false;
       $('#btn-buy-premium').textContent = 'Unlock Unlimited Plays';
+    }
+  };
+  $('#btn-watch-ad').onclick = async () => {
+    $('#btn-watch-ad').disabled = true;
+    $('#btn-watch-ad').textContent = 'Loading ad...';
+    const watched = await showRewardedAd();
+    if (watched) {
+      modal.classList.add('hidden');
+      showToast('+1 play unlocked!');
+      adPlayGranted = true;
+      startGame(gameMode);
+    } else {
+      showToast('No ad available right now. Try again later.');
+      $('#btn-watch-ad').disabled = false;
+      $('#btn-watch-ad').textContent = 'Watch Ad for +1 Play';
     }
   };
   $('#btn-close-premium').onclick = () => modal.classList.add('hidden');
