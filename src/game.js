@@ -88,6 +88,15 @@ function updateAuthUI(user) {
   $('#level-icon').textContent = l.icon;
   $('#level-name').textContent = l.name;
   $('#level-badge').classList.remove('hidden');
+  // Premium badge in header
+  const existingPremBadge = document.querySelector('.premium-badge-header');
+  if (existingPremBadge) existingPremBadge.remove();
+  if (localStorage.getItem('ptw_premium') === 'true') {
+    const badge = document.createElement('span');
+    badge.className = 'premium-badge-header';
+    badge.textContent = 'PRO';
+    $('#level-badge').appendChild(badge);
+  }
 
   // Show admin button if admin
   const adminBtn = $('#btn-admin');
@@ -334,6 +343,7 @@ function endGame() {
   playSound('gameover');
   incrementDailyPlays();
   const s = getLocalStats();
+  const prevScore = s.totalScore || 0;
   s.totalGames = (s.totalGames || 0) + 1;
   s.totalScore = (s.totalScore || 0) + totalScore;
   s.bestScore = Math.max(s.bestScore || 0, totalScore);
@@ -345,25 +355,86 @@ function endGame() {
     s.lastPlayDate = today;
   }
   saveLocalStats(s);
+  const prevLevel = getLevel(prevScore);
   const li = getLevelProgress(s.totalScore);
+  const newLevel = getLevel(s.totalScore);
+  const leveledUp = newLevel.name !== prevLevel.name;
+
   $('#gameover-score').textContent = `${totalScore.toLocaleString()} pts`;
   $('#gameover-xp').textContent = `+${scoreToXP(totalScore)} XP`;
   $('#gameover-level').innerHTML = `${li.current.icon} ${li.current.name}`;
-  $('#gameover-breakdown').innerHTML = roundScores.map((x, i) =>
+
+  // Level up banner
+  let levelUpHtml = '';
+  if (leveledUp) {
+    levelUpHtml = `<div class="level-up-banner"><div class="level-up-title">Level Up!</div><div class="level-up-icon">${newLevel.icon}</div><div class="level-up-name">${newLevel.name}</div></div>`;
+    playSound('perfect');
+  }
+
+  // XP progress bar
+  const xpProgress = li.next ? `
+    <div class="xp-progress-container">
+      <div class="xp-progress-labels"><span>${li.current.icon} ${li.current.name}</span><span>${li.next.icon} ${li.next.name}</span></div>
+      <div class="xp-progress-bar"><div class="xp-progress-fill" id="gameover-xp-fill" style="width:0%"></div></div>
+      <div class="xp-next-level">${(li.next.xp - scoreToXP(s.totalScore)).toLocaleString()} XP to next level</div>
+    </div>` : '';
+
+  $('#gameover-breakdown').innerHTML = levelUpHtml + roundScores.map((x, i) =>
     `<div class="breakdown-row"><span>Round ${i+1}</span><span class="${x===MAX_SCORE_PER_ROUND?'perfect':x>4000?'good':x>2500?'ok':'bad'}">${x.toLocaleString()}</span></div>`
-  ).join('');
+  ).join('') + xpProgress;
+
+  // Share platform buttons
+  const shareArea = document.querySelector('.gameover-actions');
+  if (shareArea) {
+    const existingPlatforms = shareArea.querySelector('.share-platforms');
+    if (existingPlatforms) existingPlatforms.remove();
+    const platforms = document.createElement('div');
+    platforms.className = 'share-platforms';
+    platforms.innerHTML = `<button class="share-btn" id="btn-share-wa">💬 WhatsApp</button><button class="share-btn" id="btn-share-x">𝕏 Twitter</button><button class="share-btn" id="btn-share-copy">📋 Copy</button>`;
+    shareArea.appendChild(platforms);
+    document.getElementById('btn-share-wa').onclick = shareToWhatsApp;
+    document.getElementById('btn-share-x').onclick = shareToTwitter;
+    document.getElementById('btn-share-copy').onclick = () => copyAndToast(getShareText());
+  }
+
   showModal('modal-gameover');
+
+  // Animate XP bar after modal shows
+  setTimeout(() => {
+    const fill = document.getElementById('gameover-xp-fill');
+    if (fill) fill.style.width = `${Math.round(li.progress * 100)}%`;
+  }, 300);
+
   checkAchievements(s, roundScores);
   const lv = getLevel(s.totalScore);
   $('#level-icon').textContent = lv.icon;
   $('#level-name').textContent = lv.name;
 }
 
-function shareResults() {
+function getShareText() {
   const e = roundScores.map(x => x===MAX_SCORE_PER_ROUND?'🎯':x>4000?'🟢':x>2500?'🟡':'🔴').join('');
-  const t = `PinTheWorld 🌍\n${e}\nScore: ${totalScore.toLocaleString()} / ${MAX_SCORE_PER_ROUND*dailyRounds.length}\npintheworld.com`;
-  if (navigator.share) navigator.share({text:t}).catch(()=>{});
-  else navigator.clipboard.writeText(t).then(()=>showToast('Copied!'));
+  const s = getLocalStats();
+  const l = getLevel(s.totalScore || 0);
+  const streak = s.streak ? `🔥 ${s.streak} day streak` : '';
+  return `PinTheWorld 🌍\n${e}\nScore: ${totalScore.toLocaleString()} / ${(MAX_SCORE_PER_ROUND*dailyRounds.length).toLocaleString()}\n${l.icon} ${l.name}${streak ? ' | ' + streak : ''}\npintheworld.online`;
+}
+
+function shareResults() {
+  const text = getShareText();
+  if (navigator.share) navigator.share({text}).catch(()=>{});
+  else copyAndToast(text);
+}
+
+function shareToWhatsApp() {
+  window.open(`https://wa.me/?text=${encodeURIComponent(getShareText())}`, '_blank');
+}
+
+function shareToTwitter() {
+  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(getShareText())}`, '_blank');
+}
+
+function copyAndToast(text) {
+  navigator.clipboard.writeText(text).then(()=>showToast('Copied!'));
 }
 
 // ---- Load rounds from Supabase (fallback to demo) ----
@@ -549,8 +620,17 @@ function bindEvents() {
   $('#btn-leaderboard').onclick=()=>showModal('modal-leaderboard');
   $('#btn-admin').onclick=()=>{ window.location.hash='admin'; showAdminScreen(); };
   $('#btn-profile').onclick=()=>{
-    const s=getLocalStats(),l=getLevel(s.totalScore||0),u=getCurrentUser();
-    $('#profile-content').innerHTML=`<div class="profile-avatar">${l.icon}</div><h3>${u?.displayName||'Guest'}</h3><div class="profile-level">${l.icon} ${l.name}</div><div class="profile-stats"><div><strong>${(s.totalGames||0).toLocaleString()}</strong><br>Games</div><div><strong>${(s.totalScore||0).toLocaleString()}</strong><br>Score</div><div><strong>${s.streak||0}</strong><br>Streak</div><div><strong>${s.perfectGuesses||0}</strong><br>Perfects</div></div>`;
+    const s=getLocalStats(),l=getLevel(s.totalScore||0),li=getLevelProgress(s.totalScore||0),u=getCurrentUser();
+    const isPrem = localStorage.getItem('ptw_premium') === 'true';
+    const premBadge = isPrem ? '<span class="premium-badge">PREMIUM</span>' : '';
+    const xpNow = Math.floor((s.totalScore||0)/10);
+    const xpBar = li.next ? `
+      <div class="xp-progress-container">
+        <div class="xp-progress-labels"><span>${li.current.icon} ${li.current.name}</span><span>${li.next.icon} ${li.next.name}</span></div>
+        <div class="xp-progress-bar"><div class="xp-progress-fill" style="width:${Math.round(li.progress*100)}%"></div></div>
+        <div class="xp-next-level">${(li.next.xp - xpNow).toLocaleString()} XP to next level</div>
+      </div>` : '<div style="color:var(--accent);font-size:0.85rem;margin-bottom:12px">Max level reached!</div>';
+    $('#profile-content').innerHTML=`<div class="profile-avatar">${l.icon}</div><h3>${u?.displayName||'Guest'} ${premBadge}</h3><div class="profile-level">${l.icon} ${l.name}</div>${xpBar}<div class="profile-stats"><div><strong>${(s.totalGames||0).toLocaleString()}</strong><br>Games</div><div><strong>${(s.totalScore||0).toLocaleString()}</strong><br>Score</div><div><strong>${s.streak||0}</strong><br>Streak</div><div><strong>${s.perfectGuesses||0}</strong><br>Perfects</div></div>`;
     showModal('modal-profile');
   };
   // Create levels

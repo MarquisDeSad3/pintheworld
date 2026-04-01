@@ -22,9 +22,76 @@ export function isAdmin(email) {
 // ---- Init Admin ----
 export function initAdmin() {
   bindAdminEvents();
+  loadDashboard();
   loadPending();
   loadActive();
   loadPromos();
+}
+
+// ---- Dashboard Stats ----
+async function loadDashboard() {
+  if (isDemoMode || !supabase) return;
+
+  try {
+    // Parallel queries
+    const [roundsRes, pendingRes, usersRes, transRes, premiumRes] = await Promise.all([
+      supabase.from('rounds').select('id', { count: 'exact', head: true }).eq('active', true),
+      supabase.from('pending_rounds').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('transactions').select('*').eq('status', 'completed').order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('is_premium', true),
+    ]);
+
+    const totalRounds = roundsRes.count || 0;
+    const pendingCount = pendingRes.count || 0;
+    const usersCount = usersRes.count || 0;
+    const premiumCount = premiumRes.count || 0;
+    const transactions = transRes.data || [];
+    const totalRevenue = transactions.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+    // Update dashboard cards
+    const el = id => document.getElementById(id);
+    if (el('dash-total-rounds')) el('dash-total-rounds').textContent = totalRounds;
+    if (el('dash-pending')) el('dash-pending').textContent = pendingCount;
+    if (el('dash-users')) el('dash-users').textContent = usersCount;
+    if (el('dash-revenue')) el('dash-revenue').textContent = `$${(totalRevenue / 100).toFixed(2)}`;
+    if (el('dash-promos')) el('dash-promos').textContent = premiumCount + ' premium';
+
+    // Update nav badges
+    if (el('nav-pending-badge')) el('nav-pending-badge').textContent = pendingCount;
+    if (el('nav-active-badge')) el('nav-active-badge').textContent = totalRounds;
+
+    // Revenue tab
+    if (el('rev-total')) el('rev-total').textContent = `$${(totalRevenue / 100).toFixed(2)}`;
+    const thisMonth = transactions.filter(t => new Date(t.created_at).getMonth() === new Date().getMonth());
+    const monthRevenue = thisMonth.reduce((sum, t) => sum + (t.amount || 0), 0);
+    if (el('rev-month')) el('rev-month').textContent = `$${(monthRevenue / 100).toFixed(2)}`;
+
+    // Transaction list
+    const txList = el('admin-transactions');
+    if (txList && transactions.length > 0) {
+      txList.innerHTML = transactions.slice(0, 20).map(t => `
+        <div class="admin-card" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px">
+          <div>
+            <div style="font-weight:600">$${(t.amount / 100).toFixed(2)} ${t.currency?.toUpperCase() || 'USD'}</div>
+            <div style="font-size:0.75rem;color:var(--text-dim)">${new Date(t.created_at).toLocaleDateString()}</div>
+          </div>
+          <span class="admin-badge" style="background:${t.status==='completed'?'rgba(16,185,129,0.15);color:#10b981':'rgba(239,68,68,0.15);color:#ef4444'}">${t.status}</span>
+        </div>`).join('');
+    }
+
+    // Recent activity
+    const recent = el('dash-recent');
+    if (recent && transactions.length > 0) {
+      recent.innerHTML = transactions.slice(0, 5).map(t => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2a3a;font-size:0.85rem">
+          <span>Payment $${(t.amount / 100).toFixed(2)}</span>
+          <span style="color:var(--text-dim)">${new Date(t.created_at).toLocaleDateString()}</span>
+        </div>`).join('');
+    }
+  } catch (e) {
+    console.error('Dashboard load error:', e);
+  }
 }
 
 function bindAdminEvents() {
