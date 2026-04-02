@@ -67,53 +67,6 @@ const COUNTRY_SIZES = {
   au:4000,nz:1600,ru:9000,
 };
 
-// Known landmark coordinates for rounds without lat/lng
-const LANDMARK_COORDS = {
-  'Eiffel Tower':[48.858,2.295],'Colosseum':[41.890,12.492],'Big Ben':[51.501,-0.142],
-  'Statue of Liberty':[40.689,-74.044],'Christ the Redeemer':[-22.952,-43.211],
-  'Taj Mahal':[27.175,78.042],'Tokyo Tower':[35.659,139.745],'Great Pyramid':[29.979,31.134],
-  'Sydney Opera House':[-33.857,151.215],'Santiago Bernabeu':[40.453,-3.688],
-  'Brandenburg Gate':[52.516,13.378],'El Capitolio, Havana':[23.114,-82.367],
-  'Palacio de Bellas Artes':[19.435,-99.141],'Red Square':[55.754,37.621],
-  'Obelisco':[-34.604,-58.382],'Burj Khalifa':[25.197,55.274],'Machu Picchu':[-13.163,-72.545],
-  'Gyeongbokgung':[37.580,126.977],'Wat Arun':[13.744,100.489],
-  'Stockholm Old Town':[59.325,18.071],'Belem Tower':[38.692,-9.216],
-  'Nairobi':[-1.292,36.822],'Forbidden City':[39.917,116.397],'Table Mountain':[-33.963,18.403],
-  'Schonbrunn Palace':[48.185,16.312],'Monserrate':[4.606,-74.056],
-  'Parliament Hill':[45.425,-75.700],'Trinidad':[21.802,-79.984],
-  'Western Wall':[31.777,35.234],'Acropolis':[37.972,23.726],
-  'Mont Saint-Michel':[48.636,-1.511],'Sagrada Familia':[41.404,2.175],
-  'Neuschwanstein Castle':[47.558,10.750],'Stonehenge':[51.179,-1.826],
-  'Santorini':[36.393,25.461],'Great Wall of China':[40.432,116.570],
-  'Golden Gate Bridge':[37.820,-122.478],'Grand Canyon':[36.107,-112.113],
-  'Chichen Itza':[20.683,-88.569],'Iguazu Falls':[-25.695,-54.437],
-  'Cartagena':[10.391,-75.514],'Torres del Paine':[-51.000,-73.000],
-  'Salar de Uyuni':[-20.134,-67.489],'Cappadocia':[38.643,34.829],
-  'Dubrovnik':[42.641,18.108],'Hungarian Parliament':[47.507,19.045],
-  'Bran Castle':[45.515,25.367],'Milford Sound':[-44.672,167.926],
-  'Fushimi Inari Shrine':[34.967,135.773],'Hagia Sophia':[41.009,28.980],
-  'Teatro Amazonas':[-3.130,-60.023],'Hawa Mahal':[26.924,75.827],
-  'Jemaa el-Fnaa':[31.626,-7.989],'Porto Ribeira':[41.141,-8.613],
-  'Leaning Tower of Pisa':[43.723,10.397],'Rialto Bridge, Venice':[45.438,12.336],
-  'Milan Cathedral':[45.464,9.192],'Pompeii':[40.751,14.487],
-  'Alhambra':[37.176,-3.588],'Guggenheim Bilbao':[43.269,-2.934],
-  'Tower Bridge':[51.505,-0.075],'Edinburgh Castle':[55.949,-3.200],
-  'Cologne Cathedral':[50.941,6.958],'Amsterdam Canals':[52.370,4.895],
-  'Charles Bridge':[50.086,14.411],'Wawel Castle':[50.054,19.935],
-  'Cliffs of Moher':[52.972,-9.431],'Bern Old City':[46.948,7.448],
-  'Banff National Park':[51.497,-116.028],'Vancouver Skyline':[49.283,-123.121],
-  'Guanajuato':[21.019,-101.257],'Amazon Theatre':[-3.130,-60.023],
-  'Cathedral of Brasilia':[-15.798,-47.876],'Terracotta Army':[34.384,109.278],
-  'Borobudur':[-7.608,110.204],'Petronas Towers':[3.159,101.712],
-  'Valley of the Kings':[25.740,32.601],'Marrakech':[31.630,-7.981],
-  'Mount Kilimanjaro':[-3.076,37.353],'Uluru':[-25.345,131.036],
-  'Hermitage Museum':[59.940,30.314],'Arenal Volcano':[10.463,-84.703],
-  'Tikal':[17.222,-89.623],'Panama Canal':[9.080,-79.681],
-  'Itsukushima Shrine':[34.296,132.320],'Osaka Castle':[34.687,135.526],
-  'Hawa Mahal':[26.924,75.827],'Nyhavn, Copenhagen':[55.680,12.587],
-  'Bergen Bryggen':[60.397,5.325],
-};
-
 // ---- Screens ----
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -362,73 +315,34 @@ function revealResult() {
   const guessedSubId = getSelectedId();
   const guessedInfo = getSubdivisionInfo(guessedSubId);
 
-  // --- Correct location reference ---
-  // Use real lat/lng if available, then LANDMARK_COORDS, then country center
+  // --- Correct subdivision (source of truth) ---
   const correctCountryId = r.countryId;
-  const correctCountryCenter = COUNTRY_CENTERS[correctCountryId];
-  let refLat = 0, refLng = 0;
-
-  if (r.lat && r.lng && (r.lat !== 0 || r.lng !== 0)) {
-    refLat = r.lat; refLng = r.lng;
-  } else if (LANDMARK_COORDS[r.locationName]) {
-    refLat = LANDMARK_COORDS[r.locationName][0];
-    refLng = LANDMARK_COORDS[r.locationName][1];
-  } else if (correctCountryCenter) {
-    refLat = correctCountryCenter[0];
-    refLng = correctCountryCenter[1];
-  }
-
-  // --- Find correct subdivision (for highlight on map) ---
+  const correctSubId = r.subdivisionId || null;
   const allSubs = getAllSubdivisionData();
-  let correctSubId = null;
-  // Use the round's known subdivisionId when it exists in the loaded subdivisions
-  if (r.subdivisionId && allSubs[r.subdivisionId]) {
-    correctSubId = r.subdivisionId;
-  } else {
-    let minD = Infinity;
-    if (refLat !== 0 || refLng !== 0) {
-      for (const [sid, info] of Object.entries(allSubs)) {
-        const d = haversineDistance(info.lat, info.lng, refLat, refLng);
-        if (d < minD) { minD = d; correctSubId = sid; }
-      }
-    }
-    if (!correctSubId && Object.keys(allSubs).length > 0) {
-      correctSubId = Object.keys(allSubs)[0];
-    }
-  }
-  const correctInfo = getSubdivisionInfo(correctSubId);
-  const correctLat = refLat || correctInfo?.lat || 0;
-  const correctLng = refLng || correctInfo?.lng || 0;
+  const correctInfo = allSubs[correctSubId] ? getSubdivisionInfo(correctSubId) : null;
 
-  // --- Scoring: Country-first + subdivision precision ---
-  // Same country = 2500 base + up to 2500 for subdivision proximity
-  // Different country = exponential decay by distance between countries
+  // Correct coordinates = subdivision centroid (fallback: round lat/lng, then country center)
+  const correctLat = correctInfo?.lat || (r.lat && r.lng ? r.lat : (COUNTRY_CENTERS[correctCountryId]?.[0] || 0));
+  const correctLng = correctInfo?.lng || (r.lat && r.lng ? r.lng : (COUNTRY_CENTERS[correctCountryId]?.[1] || 0));
+
+  // --- Scoring: subdivision-based ---
   const sameCountry = guessedCountryId === correctCountryId;
+  const guessLat = guessedInfo?.lat || 0;
+  const guessLng = guessedInfo?.lng || 0;
+  // Distance between subdivision centroids
+  let distKm = (guessLat && correctLat) ? haversineDistance(guessLat, guessLng, correctLat, correctLng) : 0;
   let score = 0;
-  let distKm = 0;
 
-  if (sameCountry) {
-    // Distance from guessed subdivision centroid to the correct point
-    distKm = guessedInfo ? haversineDistance(guessedInfo.lat, guessedInfo.lng, correctLat, correctLng) : 0;
-
-    if (guessedSubId === correctSubId) {
-      score = MAX_SCORE_PER_ROUND; // 5000 — exact subdivision
-    } else if (distKm < 1) {
-      score = MAX_SCORE_PER_ROUND; // practically the same spot
-    } else {
-      // Base 2500 for correct country + up to 2500 bonus by proximity
-      const countrySize = COUNTRY_SIZES[correctCountryId] || 1500;
-      const norm = Math.min(distKm / countrySize, 1);
-      const bonus = Math.round(2500 * (1 - norm));
-      score = 2500 + bonus; // Range: 2500 (far edge) to 4999 (very close)
-    }
+  if (guessedSubId === correctSubId) {
+    score = MAX_SCORE_PER_ROUND; // 5000 — exact subdivision
+  } else if (sameCountry) {
+    // Correct country, wrong subdivision — base 2500 + proximity bonus
+    const countrySize = COUNTRY_SIZES[correctCountryId] || 1500;
+    const norm = Math.min(distKm / countrySize, 1);
+    const bonus = Math.round(2500 * (1 - norm));
+    score = 2500 + bonus; // Range: 2500 (far edge) to 4999 (very close)
   } else {
-    // Wrong country — distance between guessed point and correct point
-    const guessLat = guessedInfo?.lat || (COUNTRY_CENTERS[guessedCountryId]?.[0] || 0);
-    const guessLng = guessedInfo?.lng || (COUNTRY_CENTERS[guessedCountryId]?.[1] || 0);
-    distKm = haversineDistance(guessLat, guessLng, correctLat, correctLng);
-    // Exponential decay: 2500 * e^(-5 * d / 20000)
-    // At 500km ≈ 2206, 2000km ≈ 1516, 5000km ≈ 716, 10000km ≈ 205
+    // Wrong country — exponential decay by distance
     score = Math.round(2500 * Math.exp(-5 * distKm / 20000));
   }
 
@@ -459,8 +373,6 @@ function revealResult() {
   else { playSound('wrong'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
 
   // Always show both points: guessed and correct
-  const guessLat = guessedInfo?.lat || 0;
-  const guessLng = guessedInfo?.lng || 0;
   if (guessedSubId !== correctSubId && guessLat && correctLat) {
     drawDistanceLine([guessLat, guessLng], [correctLat, correctLng]);
     // Zoom to fit BOTH points using coordinates (works even across countries)
@@ -782,57 +694,7 @@ async function loadRounds(mode) {
 }
 
 function getDemoRounds() {
-  const mode = 'places';
-  const base = [
-    {lat:48.8584,lng:2.2945,locationName:'Eiffel Tower',country:'France',countryId:'fr',subdivisionId:'fr___le_de_france',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/600px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg'},
-    {lat:41.8902,lng:12.4922,locationName:'Colosseum',country:'Italy',countryId:'it',subdivisionId:'it_lazio',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/600px-Colosseo_2020.jpg'},
-    {lat:51.5014,lng:-0.1419,locationName:'Big Ben',country:'United Kingdom',countryId:'gb',subdivisionId:'gb_greater_london',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/Clock_Tower_-_Palace_of_Westminster%2C_London_-_May_2007.jpg/600px-Clock_Tower_-_Palace_of_Westminster%2C_London_-_May_2007.jpg'},
-    {lat:40.6892,lng:-74.0445,locationName:'Statue of Liberty',country:'United States',countryId:'us',subdivisionId:'us_new_york',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Statue_of_Liberty_7.jpg/600px-Statue_of_Liberty_7.jpg'},
-    {lat:-22.9519,lng:-43.2105,locationName:'Christ the Redeemer',country:'Brazil',countryId:'br',subdivisionId:'br_rio_de_janeiro',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4f/Christ_the_Redeemer_-_Cristo_Redentor.jpg/600px-Christ_the_Redeemer_-_Cristo_Redentor.jpg'},
-    {lat:27.1751,lng:78.0421,locationName:'Taj Mahal',country:'India',countryId:'in',subdivisionId:'in_uttar_pradesh',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/bd/Taj_Mahal%2C_Agra%2C_India_edit3.jpg/600px-Taj_Mahal%2C_Agra%2C_India_edit3.jpg'},
-    {lat:35.6762,lng:139.6503,locationName:'Tokyo Tower',country:'Japan',countryId:'jp',subdivisionId:'jp_tokyo',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/TaroTokyo20110213-TokyoTower-01min.jpg/600px-TaroTokyo20110213-TokyoTower-01min.jpg'},
-    {lat:29.9792,lng:31.1342,locationName:'Great Pyramid',country:'Egypt',countryId:'eg',subdivisionId:'eg_giza',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Kheops-Pyramid.jpg/600px-Kheops-Pyramid.jpg'},
-    {lat:-33.8568,lng:151.2153,locationName:'Sydney Opera House',country:'Australia',countryId:'au',subdivisionId:'au_new_south_wales',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a0/Sydney_Australia._%2821339175489%29.jpg/600px-Sydney_Australia._%2821339175489%29.jpg'},
-    {lat:40.4319,lng:-3.6753,locationName:'Santiago Bernabeu',country:'Spain',countryId:'es',subdivisionId:'es_madrid',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/Nuevo_Estadio_Santiago_Bernab%C3%A9u_-_2024.jpg/600px-Nuevo_Estadio_Santiago_Bernab%C3%A9u_-_2024.jpg'},
-    {lat:52.5163,lng:13.3777,locationName:'Brandenburg Gate',country:'Germany',countryId:'de',subdivisionId:'de_berlin',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a6/Brandenburger_Tor_abends.jpg/600px-Brandenburger_Tor_abends.jpg'},
-    {lat:23.1136,lng:-82.3666,locationName:'El Capitolio, Havana',country:'Cuba',countryId:'cu',subdivisionId:'cu_la_habana',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/5/52/El_Capitolio_Havana.jpg/600px-El_Capitolio_Havana.jpg'},
-    {lat:19.4326,lng:-99.1332,locationName:'Palacio de Bellas Artes',country:'Mexico',countryId:'mx',subdivisionId:'mx_ciudad_de_m_xico',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Palacio_de_Bellas_Artes_-_Ciudad_de_M%C3%A9xico.jpg/600px-Palacio_de_Bellas_Artes_-_Ciudad_de_M%C3%A9xico.jpg'},
-    {lat:55.7539,lng:37.6208,locationName:'Red Square',country:'Russia',countryId:'ru',subdivisionId:'ru_moscow',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f8/RedSquare_SaintBasile_%28pixinn.net%29.jpg/600px-RedSquare_SaintBasile_%28pixinn.net%29.jpg'},
-    {lat:-34.6037,lng:-58.3816,locationName:'Obelisco',country:'Argentina',countryId:'ar',subdivisionId:'ar_buenos_aires',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Buenos_Aires_-_Avenida_9_de_Julio.jpg/600px-Buenos_Aires_-_Avenida_9_de_Julio.jpg'},
-    {lat:25.1972,lng:55.2744,locationName:'Burj Khalifa',country:'UAE',countryId:'ae',subdivisionId:'ae_dubai',photoUrl:'https://upload.wikimedia.org/wikipedia/en/thumb/9/93/Burj_Khalifa.jpg/600px-Burj_Khalifa.jpg'},
-    {lat:-13.1631,lng:-72.5450,locationName:'Machu Picchu',country:'Peru',countryId:'pe',subdivisionId:'pe_cusco',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Machu_Picchu%2C_Peru.jpg/600px-Machu_Picchu%2C_Peru.jpg'},
-    {lat:37.5665,lng:126.9780,locationName:'Gyeongbokgung',country:'South Korea',countryId:'kr',subdivisionId:'kr_seoul',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/%EA%B2%BD%EB%B3%B5%EA%B6%81_%EA%B7%BC%EC%A0%95%EC%A0%84_%EC%95%9E_%EC%96%B4%EB%8F%84.jpg/600px-%EA%B2%BD%EB%B3%B5%EA%B6%81_%EA%B7%BC%EC%A0%95%EC%A0%84_%EC%95%9E_%EC%96%B4%EB%8F%84.jpg'},
-    {lat:13.7563,lng:100.5018,locationName:'Wat Arun',country:'Thailand',countryId:'th',subdivisionId:'th_bangkok',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/78/Wat_Arun_Bangkok.jpg/600px-Wat_Arun_Bangkok.jpg'},
-    {lat:59.3293,lng:18.0686,locationName:'Stockholm Old Town',country:'Sweden',countryId:'se',subdivisionId:'se_stockholm',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/ef/Stockholms_gamla_stan%2C_2012.jpg/600px-Stockholms_gamla_stan%2C_2012.jpg'},
-    {lat:38.7223,lng:-9.1393,locationName:'Belem Tower',country:'Portugal',countryId:'pt',subdivisionId:'pt_lisboa',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/Bel%C3%A9m_Tower_Lisbon.jpg/600px-Bel%C3%A9m_Tower_Lisbon.jpg'},
-    {lat:-1.2921,lng:36.8219,locationName:'Nairobi',country:'Kenya',countryId:'ke',subdivisionId:'ke_nairobi',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a3/Nairobi_Skyline_from_Nairobi_National_Park.jpg/600px-Nairobi_Skyline_from_Nairobi_National_Park.jpg'},
-    {lat:39.9042,lng:116.4074,locationName:'Forbidden City',country:'China',countryId:'cn',subdivisionId:'cn_beijing',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Forbidden_city_07.jpg/600px-Forbidden_city_07.jpg'},
-    {lat:-33.9249,lng:18.4241,locationName:'Table Mountain',country:'South Africa',countryId:'za',subdivisionId:'za_western_cape',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/Table_Mountain_DavidNewton.jpg/600px-Table_Mountain_DavidNewton.jpg'},
-    {lat:48.2082,lng:16.3738,locationName:'Schonbrunn Palace',country:'Austria',countryId:'at',subdivisionId:'at_wien',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/29/Schloss_Sch%C3%B6nbrunn_-_Gartenseite.jpg/600px-Schloss_Sch%C3%B6nbrunn_-_Gartenseite.jpg'},
-    {lat:4.7110,lng:-74.0721,locationName:'Monserrate',country:'Colombia',countryId:'co',subdivisionId:'co_bogot_',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d1/Monserrate_Bogot%C3%A1.jpg/600px-Monserrate_Bogot%C3%A1.jpg'},
-    {lat:45.4215,lng:-75.6972,locationName:'Parliament Hill',country:'Canada',countryId:'ca',subdivisionId:'ca_ontario',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/48/Ottawa_-_ON_-_Parliament_Hill.jpg/600px-Ottawa_-_ON_-_Parliament_Hill.jpg'},
-    {lat:21.4225,lng:-77.9910,locationName:'Trinidad',country:'Cuba',countryId:'cu',subdivisionId:'cu_sancti_sp_ritus',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Trinidad_%28Kuba%29_02.jpg/600px-Trinidad_%28Kuba%29_02.jpg'},
-    {lat:31.7683,lng:35.2137,locationName:'Western Wall',country:'Israel',countryId:'il',subdivisionId:'il_jerusalem',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Western_Wall_2.jpg/600px-Western_Wall_2.jpg'},
-    {lat:37.9715,lng:23.7257,locationName:'Acropolis',country:'Greece',countryId:'gr',subdivisionId:'gr_attica',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/AthenaeumAcropolis.jpg/600px-AthenaeumAcropolis.jpg'},
-  ].map((l,i) => ({...l, id:`d${i}`, mode, isPromo:false}));
-
-  // Merge seed rounds (avoid duplicates by locationName)
-  const existing = new Set(base.map(r => r.locationName));
-  const extra = SEED_ROUNDS
-    .filter(r => !existing.has(r.locationName))
-    .map((r, i) => ({
-      id: `s${i}`,
-      lat: 0, lng: 0,
-      locationName: r.locationName,
-      country: r.countryName,
-      countryId: r.countryId,
-      subdivisionId: r.subdivisionId,
-      photoUrl: r.photoUrl,
-      mode,
-      isPromo: false,
-    }));
-
-  return [...base, ...extra];
+  return [];
 }
 
 // ---- Confetti on perfect score ----

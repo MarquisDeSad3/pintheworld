@@ -1,7 +1,7 @@
 /* Admin Panel — manage rounds, approve submissions, create content */
 
 import { supabase, isDemoMode } from './supabase.js';
-import { getCountry } from './countries/index.js';
+import { COUNTRIES, getCountry } from './countries/index.js';
 import { playSound } from './sounds.js';
 
 const $ = sel => document.querySelector(sel);
@@ -143,8 +143,67 @@ function bindAdminEvents() {
     };
   });
 
+  // Populate country dropdown
+  const countrySelect = $('#admin-country-select');
+  if (countrySelect) {
+    COUNTRIES.sort((a, b) => a.name.localeCompare(b.name)).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.flag} ${c.name}`;
+      countrySelect.appendChild(opt);
+    });
+    countrySelect.onchange = () => loadAdminSubdivisions(countrySelect.value);
+  }
+
   // Create round button
   $('#btn-admin-create').onclick = createRound;
+}
+
+// ---- Load subdivisions for admin create form ----
+const adminGeoCache = new Map();
+
+async function loadAdminSubdivisions(countryId) {
+  const subdivSelect = $('#admin-subdiv-select');
+  if (!subdivSelect) return;
+  subdivSelect.innerHTML = '<option value="">Loading...</option>';
+  subdivSelect.disabled = true;
+
+  if (!countryId) {
+    subdivSelect.innerHTML = '<option value="">-- Select country first --</option>';
+    return;
+  }
+
+  try {
+    let data = adminGeoCache.get(countryId);
+    if (!data) {
+      const res = await fetch(`/geojson/${countryId}-subdivisions.geojson`);
+      if (!res.ok) throw new Error('GeoJSON not found');
+      data = await res.json();
+      adminGeoCache.set(countryId, data);
+    }
+
+    const subs = [];
+    (data.features || []).forEach(f => {
+      const props = f.properties;
+      const name = props.name || props.NAME || '';
+      const rawId = props.id || name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const fullId = `${countryId}_${rawId}`;
+      if (name) subs.push({ id: fullId, name });
+    });
+    subs.sort((a, b) => a.name.localeCompare(b.name));
+
+    subdivSelect.innerHTML = '<option value="">-- Select subdivision --</option>';
+    subs.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = JSON.stringify({ id: s.id, name: s.name });
+      opt.textContent = s.name;
+      subdivSelect.appendChild(opt);
+    });
+    subdivSelect.disabled = false;
+  } catch (e) {
+    console.error('Failed to load subdivisions:', e);
+    subdivSelect.innerHTML = '<option value="">No subdivisions found</option>';
+  }
 }
 
 // ---- Load Pending ----
@@ -381,26 +440,23 @@ async function loadPromos() {
 
 // ---- Create Round ----
 async function createRound() {
-  const photoUrl = $('#admin-photo-url').value.trim();
-  const countryId = $('#admin-country-id').value.trim().toLowerCase();
-  const subdivId = $('#admin-subdiv-id').value.trim();
-  const subdivName = $('#admin-subdiv-name').value.trim();
-  const locationName = $('#admin-location-name').value.trim();
-  const lat = parseFloat($('#admin-lat').value);
-  const lng = parseFloat($('#admin-lng').value);
+  const photoUrl = $('#admin-photo-url')?.value.trim();
+  const countryId = $('#admin-country-select')?.value;
+  const subdivRaw = $('#admin-subdiv-select')?.value;
 
-  if (!photoUrl || !countryId || !subdivId || !subdivName) {
+  if (!photoUrl || !countryId || !subdivRaw) {
     $('#admin-create-status').textContent = 'Fill all required fields';
     $('#admin-create-status').className = 'submit-status error';
     return;
   }
 
+  const subdiv = JSON.parse(subdivRaw);
   const cc = getCountry(countryId);
   const round = {
     country_id: countryId,
     country_name: cc ? cc.name : countryId.toUpperCase(),
-    subdivision_id: `${countryId}_${subdivId}`,
-    subdivision_name: subdivName,
+    subdivision_id: subdiv.id,
+    subdivision_name: subdiv.name,
     mode: createMode,
     photo_url: photoUrl,
     difficulty: 'medium',
@@ -413,9 +469,6 @@ async function createRound() {
   if (isDemoMode) {
     const active = JSON.parse(localStorage.getItem('ptw_active_rounds') || '[]');
     round.id = `admin_${Date.now()}`;
-    round.lat = lat;
-    round.lng = lng;
-    round.locationName = locationName;
     active.push(round);
     localStorage.setItem('ptw_active_rounds', JSON.stringify(active));
     playSound('perfect');
@@ -434,5 +487,10 @@ async function createRound() {
   playSound('perfect');
   $('#admin-create-status').textContent = 'Round created!';
   $('#admin-create-status').className = 'submit-status success';
+  // Reset form
+  $('#admin-photo-url').value = '';
+  $('#admin-country-select').value = '';
+  $('#admin-subdiv-select').innerHTML = '<option value="">-- Select country first --</option>';
+  $('#admin-subdiv-select').disabled = true;
   loadActive();
 }
