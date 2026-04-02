@@ -221,6 +221,10 @@ header > * { pointer-events: auto; }
 .achievement-popup__title { font-size: 0.75rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
 .achievement-popup__name { font-weight: 700; }
 
+/* Fix Leaflet SVG overlay border */
+.leaflet-overlay-pane svg { border: none !important; outline: none !important; box-shadow: none !important; }
+.leaflet-pane svg { border: none !important; }
+
 /* Utility */
 .hidden:not(.screen) { display: none !important; }
 .modal.hidden { display: none !important; }
