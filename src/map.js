@@ -225,6 +225,13 @@ export function fitBoth(id1, id2) {
   if (b.isValid()) gameMap.fitBounds(b, { padding: [50, 50], maxZoom: 8 });
 }
 
+/** Fit map to show two coordinate points with padding */
+export function fitPoints(lat1, lng1, lat2, lng2) {
+  if (!gameMap) return;
+  const b = L.latLngBounds([[lat1, lng1], [lat2, lng2]]);
+  if (b.isValid()) gameMap.fitBounds(b, { padding: [60, 60], maxZoom: 8, animate: true });
+}
+
 export function getFeatureCentroid(id) {
   const lg = subdivisionsLayer || countriesLayer;
   let c = null;

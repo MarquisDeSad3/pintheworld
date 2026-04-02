@@ -9,7 +9,7 @@ import {
   initGameMap, initHomeMap, showCountries, showSubdivisions,
   getSelectedId, getSelectedName, getSubdivisionInfo, getAllSubdivisionData,
   highlightCorrect, highlightWrong, drawDistanceLine, resetForNextRound,
-  destroyGameMap, addLabel, fitBoth, getCurrentPhase
+  destroyGameMap, addLabel, fitBoth, fitPoints, getCurrentPhase
 } from './map.js';
 import { initAuth, onAuthChange, signInWithGoogle, signOut, getCurrentUser, isSignedIn } from './auth.js';
 import { isAdmin, verifyAdmin, initAdmin } from './admin.js';
@@ -457,12 +457,21 @@ function revealResult() {
   else if (score > 3000) { playSound('correct'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
   else { playSound('wrong'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
 
-  if (guessedSubId !== correctSubId && guessedInfo && correctInfo) {
-    drawDistanceLine([guessedInfo.lat, guessedInfo.lng], [correctInfo.lat, correctInfo.lng]);
-    fitBoth(guessedSubId, correctSubId);
+  // Always show both points: guessed and correct
+  const guessLat = guessedInfo?.lat || 0;
+  const guessLng = guessedInfo?.lng || 0;
+  if (guessedSubId !== correctSubId && guessLat && correctLat) {
+    drawDistanceLine([guessLat, guessLng], [correctLat, correctLng]);
+    // Zoom to fit BOTH points using coordinates (works even across countries)
+    fitPoints(guessLat, guessLng, correctLat, correctLng);
   }
-  if (correctInfo) addLabel([correctInfo.lat, correctInfo.lng], correctInfo.name, 'map-label correct-label');
-  if (guessedSubId !== correctSubId && guessedInfo) addLabel([guessedInfo.lat, guessedInfo.lng], guessedInfo.name, 'map-label wrong-label');
+  if (correctLat && correctLng) {
+    const correctName = correctInfo?.name || r.locationName || '?';
+    addLabel([correctLat, correctLng], `✓ ${correctName}`, 'map-label correct-label');
+  }
+  if (guessedSubId !== correctSubId && guessedInfo) {
+    addLabel([guessLat, guessLng], `✗ ${guessedInfo.name}`, 'map-label wrong-label');
+  }
 
   $('#phase-indicator').classList.add('hidden');
   $('#btn-confirm').disabled = true;
