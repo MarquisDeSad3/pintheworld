@@ -48,29 +48,44 @@ export function computeMaxDistance(subdivisions) {
   return max;
 }
 
-// Seeded random for daily deterministic round selection
-export function seededRandom(seed) {
-  let s = seed;
-  return function () {
-    s = (s * 1664525 + 1013904223) & 0xFFFFFFFF;
-    return (s >>> 0) / 0xFFFFFFFF;
-  };
-}
-
-export function getDailySeed() {
-  const d = new Date();
-  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-}
-
-export function selectDailyRounds(allRounds, count) {
+/**
+ * Select random rounds that the user hasn't played yet.
+ * Tracks played round IDs in localStorage per mode.
+ * When all rounds have been played, resets the history.
+ */
+export function selectRandomRounds(allRounds, count, mode) {
   count = count || ROUNDS_PER_GAME;
-  const rand = seededRandom(getDailySeed());
-  const shuffled = [...allRounds];
+
+  // Get history of played round IDs for this mode
+  const storageKey = `ptw_played_${mode || 'places'}`;
+  let playedIds;
+  try { playedIds = new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); }
+  catch { playedIds = new Set(); }
+
+  // Filter out already-played rounds
+  let available = allRounds.filter(r => !playedIds.has(r.id));
+
+  // If not enough unplayed rounds, reset history
+  if (available.length < count) {
+    playedIds.clear();
+    localStorage.setItem(storageKey, '[]');
+    available = [...allRounds];
+  }
+
+  // Fisher-Yates shuffle with Math.random (truly random, not seeded)
+  const shuffled = [...available];
   for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
+    const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  return shuffled.slice(0, count);
+
+  const selected = shuffled.slice(0, count);
+
+  // Record these rounds as played
+  for (const r of selected) playedIds.add(r.id);
+  localStorage.setItem(storageKey, JSON.stringify([...playedIds]));
+
+  return selected;
 }
 
 export { MAX_SCORE_PER_ROUND, ROUNDS_PER_GAME };

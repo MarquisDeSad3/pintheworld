@@ -1,7 +1,7 @@
 /* PinTheWorld — Game Engine (Drill-down: Country → Subdivision) */
 
 import { playSound } from './sounds.js';
-import { haversineDistance, selectDailyRounds, MAX_SCORE_PER_ROUND, ROUNDS_PER_GAME } from './scoring.js';
+import { haversineDistance, selectRandomRounds, MAX_SCORE_PER_ROUND, ROUNDS_PER_GAME } from './scoring.js';
 import { getLevel, getLevelProgress, scoreToXP } from './levels.js';
 import { checkAchievements } from './achievements.js';
 import { COUNTRIES, getCountry } from './countries/index.js';
@@ -12,7 +12,7 @@ import {
   destroyGameMap, addLabel, fitBoth, getCurrentPhase
 } from './map.js';
 import { initAuth, onAuthChange, signInWithGoogle, signOut, getCurrentUser, isSignedIn } from './auth.js';
-import { isAdmin, initAdmin } from './admin.js';
+import { isAdmin, verifyAdmin, initAdmin } from './admin.js';
 import { initI18n, setLang, t } from './i18n.js';
 import { supabase, isDemoMode } from './supabase.js';
 import { initSubmitScreen, destroySubmitScreen } from './submissions.js';
@@ -54,7 +54,11 @@ export async function init() {
   initAds();
   initEasterEggs();
   await initAuth();
-  onAuthChange(updateAuthUI);
+  await verifyAdmin();
+  onAuthChange(async (user) => {
+    if (user && !user.isGuest) await verifyAdmin();
+    updateAuthUI(user);
+  });
   updateAuthUI(getCurrentUser());
   bindEvents();
 
@@ -104,7 +108,7 @@ function updateAuthUI(user) {
   // Show admin button if admin
   const adminBtn = $('#btn-admin');
   if (adminBtn) {
-    if (user && !user.isGuest && isAdmin(user.email)) {
+    if (user && !user.isGuest && isAdmin()) {
       adminBtn.classList.remove('hidden');
     } else {
       adminBtn.classList.add('hidden');
@@ -120,7 +124,7 @@ function showHomeScreen() {
 
 function showAdminScreen() {
   const user = getCurrentUser();
-  if (!user || user.isGuest || !isAdmin(user.email)) {
+  if (!user || user.isGuest || !isAdmin()) {
     showToast('Admin access only');
     showHomeScreen();
     return;
@@ -150,7 +154,14 @@ async function startGame(mode) {
   adPlayGranted = false;
 
   const allRounds = await loadRounds(mode);
-  dailyRounds = selectDailyRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length));
+
+  // No rounds available — show "building levels" message
+  if (!allRounds || allRounds.length === 0) {
+    showNoRoundsScreen(mode);
+    return;
+  }
+
+  dailyRounds = selectRandomRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length), mode);
   currentRoundIndex = 0;
   totalScore = 0;
   roundScores = [];
@@ -503,9 +514,18 @@ function copyAndToast(text) {
   navigator.clipboard.writeText(text).then(()=>showToast('Copied!'));
 }
 
-// ---- Load rounds from Supabase (fallback to demo) ----
+// ---- Load rounds: Supabase + localStorage + demo (places only) ----
 async function loadRounds(mode) {
-  // Try Supabase first
+  const seen = new Set();
+  const all = [];
+
+  function addRound(r) {
+    if (!r.id || seen.has(r.id)) return;
+    seen.add(r.id);
+    all.push(r);
+  }
+
+  // 1) Supabase — user-created rounds filtered by mode
   if (!isDemoMode && supabase) {
     try {
       const { data, error } = await supabase
@@ -513,10 +533,10 @@ async function loadRounds(mode) {
         .select('*')
         .eq('mode', mode)
         .eq('active', true);
-      if (!error && data && data.length >= 5) {
-        return data.map(r => ({
+      if (!error && data) {
+        data.forEach(r => addRound({
           id: r.id,
-          lat: 0, lng: 0, // We use subdivision centroid for scoring
+          lat: 0, lng: 0,
           locationName: r.subdivision_name || '?',
           country: r.country_name || '?',
           countryId: r.country_id,
@@ -530,26 +550,32 @@ async function loadRounds(mode) {
     } catch (e) { console.error('Error loading rounds:', e); }
   }
 
-  // Also check localStorage for admin-created rounds
-  const localActive = JSON.parse(localStorage.getItem('ptw_active_rounds') || '[]');
-  if (localActive.length >= 5) {
-    return localActive.filter(r => r.mode === mode || !r.mode).map(r => ({
+  // 2) localStorage (admin-created rounds) — strict mode match
+  try {
+    const localActive = JSON.parse(localStorage.getItem('ptw_active_rounds') || '[]');
+    localActive.filter(r => r.mode === mode).forEach(r => addRound({
       id: r.id, lat: r.lat || 0, lng: r.lng || 0,
       locationName: r.locationName || r.subdivision_name || '?',
       country: r.countryName || r.country_name || '?',
       countryId: r.countryId || r.country_id,
       subdivisionId: r.subdivisionId || r.subdivision_id,
-      mode: mode, photoUrl: r.photoUrl || r.photo_url,
+      mode, photoUrl: r.photoUrl || r.photo_url,
       isPromo: r.isPromo || r.is_promo,
       promoData: r.promoData || r.promo_data,
     }));
+  } catch { /* ignore */ }
+
+  // 3) Demo / seed rounds — ONLY for 'places' mode
+  //    'people' mode has no demo content; it relies on user submissions
+  if (mode === 'places') {
+    getDemoRounds().forEach(r => addRound(r));
   }
 
-  // Fallback to demo
-  return getDemoRounds(mode);
+  return all;
 }
 
-function getDemoRounds(mode) {
+function getDemoRounds() {
+  const mode = 'places';
   const base = [
     {lat:48.8584,lng:2.2945,locationName:'Eiffel Tower',country:'France',countryId:'fr',subdivisionId:'fr___le_de_france',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/85/Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg/600px-Tour_Eiffel_Wikimedia_Commons_%28cropped%29.jpg'},
     {lat:41.8902,lng:12.4922,locationName:'Colosseum',country:'Italy',countryId:'it',subdivisionId:'it_lazio',photoUrl:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/Colosseo_2020.jpg/600px-Colosseo_2020.jpg'},
@@ -607,6 +633,44 @@ function getWeekKey() {
   const start = new Date(d.getFullYear(), 0, 1);
   const week = Math.ceil(((d - start) / 86400000 + start.getDay() + 1) / 7);
   return `${d.getFullYear()}-W${week}`;
+}
+
+function showNoRoundsScreen(mode) {
+  const modeLabel = mode === 'people' ? 'Cupido' : 'Places';
+  const existing = $('#modal-no-rounds');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-no-rounds';
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="text-align:center;max-width:400px">
+      <div style="font-size:56px;margin-bottom:12px">🏗️</div>
+      <h2 style="margin:0 0 8px">Building Levels</h2>
+      <p style="color:#9ca3af;margin:0 0 20px">
+        No ${modeLabel} rounds available yet. Help us build the game by creating new levels!
+      </p>
+      <button id="btn-no-rounds-create" class="btn-primary" style="width:100%;padding:14px;font-size:16px;font-weight:700">
+        Create a Level
+      </button>
+      <button id="btn-no-rounds-close" class="btn-secondary" style="width:100%;margin-top:8px;padding:10px;opacity:0.6">
+        Back to Home
+      </button>
+    </div>`;
+  document.getElementById('app').appendChild(modal);
+
+  $('#btn-no-rounds-create').onclick = () => {
+    modal.classList.add('hidden');
+    showScreen('screen-submit');
+    $('#btn-back').classList.remove('hidden');
+    gameState = 'SUBMITTING';
+    initSubmitScreen();
+  };
+  $('#btn-no-rounds-close').onclick = () => {
+    modal.classList.add('hidden');
+    showHomeScreen();
+  };
+  modal.onclick = (e) => { if (e.target === modal) { modal.classList.add('hidden'); showHomeScreen(); } };
 }
 
 function getDailyPlays() { try { const d=JSON.parse(localStorage.getItem(`ptw_plays_${gameMode}`)); return d?.date===new Date().toDateString()?d.count:0; } catch{return 0;} }

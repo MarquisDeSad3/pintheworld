@@ -76,6 +76,10 @@ export async function signInWithGoogle() {
 }
 
 export async function signOut() {
+  // Clear premium cache on sign out
+  localStorage.removeItem('ptw_premium');
+  localStorage.removeItem('ptw_premium_ts');
+
   if (isDemoMode) {
     currentUser = { id: 'guest', displayName: 'Guest', isGuest: true };
     notifyListeners();

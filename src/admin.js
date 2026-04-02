@@ -6,17 +6,45 @@ import { playSound } from './sounds.js';
 
 const $ = sel => document.querySelector(sel);
 
-// Admin whitelist
-const ADMIN_EMAILS = [
-  'marquisdesade3141@gmail.com',
-  'fajardomiguelangel50@gmail.com',
-];
-
 let currentTab = 'pending';
 let createMode = 'places';
 
-export function isAdmin(email) {
-  return ADMIN_EMAILS.includes(email?.toLowerCase());
+// Cached admin status (verified from Supabase `admins` table)
+let _isAdminVerified = false;
+
+/**
+ * Check admin status against the `admins` table in Supabase.
+ * Call once after auth init; result is cached for the session.
+ */
+export async function verifyAdmin() {
+  if (isDemoMode || !supabase) {
+    _isAdminVerified = false;
+    return false;
+  }
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { _isAdminVerified = false; return false; }
+
+    const { data, error } = await supabase
+      .from('admins')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    _isAdminVerified = !!data && !error;
+  } catch (e) {
+    console.error('Admin check error:', e);
+    _isAdminVerified = false;
+  }
+  return _isAdminVerified;
+}
+
+/**
+ * Synchronous check — returns the cached result from verifyAdmin().
+ * Safe to call in UI code after verifyAdmin() has resolved.
+ */
+export function isAdmin() {
+  return _isAdminVerified;
 }
 
 // ---- Init Admin ----

@@ -7,14 +7,24 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 
 /**
  * Check if current user is premium.
- * Checks Supabase first, falls back to localStorage.
+ * Always verifies against Supabase — localStorage is only a short-lived cache
+ * to avoid re-checking on every UI render (expires after 5 minutes).
  */
 export async function checkPremium() {
-  // Check localStorage cache first
-  if (localStorage.getItem('ptw_premium') === 'true') return true;
+  if (!isSignedIn() || isDemoMode || !supabase) {
+    // Guests and demo mode are never premium
+    localStorage.removeItem('ptw_premium');
+    localStorage.removeItem('ptw_premium_ts');
+    return false;
+  }
 
-  if (!isSignedIn() || isDemoMode || !supabase) return false;
+  // Use cache only if verified within the last 5 minutes
+  const cachedTs = parseInt(localStorage.getItem('ptw_premium_ts') || '0', 10);
+  if (localStorage.getItem('ptw_premium') === 'true' && Date.now() - cachedTs < 5 * 60 * 1000) {
+    return true;
+  }
 
+  // Always verify with Supabase
   try {
     const user = getCurrentUser();
     if (!user || user.isGuest) return false;
@@ -27,8 +37,13 @@ export async function checkPremium() {
 
     if (data?.is_premium) {
       localStorage.setItem('ptw_premium', 'true');
+      localStorage.setItem('ptw_premium_ts', String(Date.now()));
       return true;
     }
+
+    // Server says not premium — clear any spoofed cache
+    localStorage.removeItem('ptw_premium');
+    localStorage.removeItem('ptw_premium_ts');
   } catch (e) {
     console.error('Premium check error:', e);
   }
@@ -111,6 +126,7 @@ export function handlePaymentReturn() {
   if (payment === 'success') {
     if (type === 'premium') {
       localStorage.setItem('ptw_premium', 'true');
+      localStorage.setItem('ptw_premium_ts', String(Date.now()));
     }
     return { success: true, type };
   }
