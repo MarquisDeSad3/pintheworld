@@ -374,6 +374,15 @@
   object-fit: cover;
   display: block;
 }
+.photo-container.mode-people {
+  width: 140px;
+  height: 200px;
+}
+.photo-container.mode-people:hover,
+.photo-container.mode-people.expanded {
+  width: 250px;
+  height: 360px;
+}
 
 .photo-overlay {
   position: absolute;
@@ -1476,6 +1485,9 @@
   .photo-container { width: 140px; height: 100px; }
   .photo-container:hover { width: 140px; height: 100px; }
   .photo-container.expanded { width: 280px; height: 200px; }
+  .photo-container.mode-people { width: 100px; height: 140px; }
+  .photo-container.mode-people:hover { width: 100px; height: 140px; }
+  .photo-container.mode-people.expanded { width: 200px; height: 280px; }
   .game-info { padding: 4px 10px; font-size: 0.7rem; }
   .phase-indicator { top: 44px; font-size: 0.7rem; padding: 4px 10px; }
   #btn-confirm { padding: 10px 36px; font-size: 0.9rem; }

@@ -236,6 +236,7 @@ function startRound() {
   $('#round-counter').textContent = `${currentRoundIndex + 1} / ${dailyRounds.length}`;
   $('#score-display').textContent = `${totalScore.toLocaleString()} pts`;
   $('#round-photo').src = r.photoUrl;
+  $('#round-photo-container').classList.toggle('mode-people', r.mode === 'people');
   $('#promo-card').classList.add('hidden');
 
   // Difficulty badge
