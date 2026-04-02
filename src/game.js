@@ -268,6 +268,7 @@ function startRound() {
   gameState = 'PLAYING_COUNTRY';
   $('#btn-confirm').disabled = true;
   $('#btn-confirm').textContent = 'Confirm Region';
+  $('#btn-confirm').onclick = confirmGuess;
   $('#selected-info').classList.add('hidden');
   $('#phase-indicator').textContent = t('selectCountry');
   $('#phase-indicator').classList.remove('hidden');
@@ -1137,7 +1138,20 @@ function bindEvents() {
   };
 
   document.querySelectorAll('.modal-close').forEach(b=>{b.onclick=()=>hideModal(b.dataset.close);});
-  document.querySelectorAll('.modal').forEach(m=>{m.onclick=e=>{if(e.target===m)m.classList.add('hidden');};});
+  document.querySelectorAll('.modal').forEach(m=>{
+    m.onclick=e=>{
+      if(e.target===m){
+        m.classList.add('hidden');
+        // If result modal dismissed by clicking outside, show Continue on btn-confirm
+        if(m.id==='modal-result' && gameState==='RESULT'){
+          const btn=$('#btn-confirm');
+          btn.disabled=false;
+          btn.textContent='Continue';
+          btn.onclick=()=>{ nextRound(); btn.onclick=confirmGuess; };
+        }
+      }
+    };
+  });
   // Language selector
   const langSelect = $('#lang-select');
   if (langSelect) {
