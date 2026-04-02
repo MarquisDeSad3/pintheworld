@@ -204,11 +204,13 @@ async function startGame(mode) {
     return;
   }
 
-  // Daily challenge: same rounds for everyone today. Normal: random non-repeating.
+  // Select rounds with difficulty mix based on player level
+  const playerScore = getLocalStats().totalScore || 0;
+  const roundCount = Math.min(ROUNDS_PER_GAME, allRounds.length);
   if (isDailyChallenge) {
-    dailyRounds = selectDailyRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length));
+    dailyRounds = selectDailyRounds(allRounds, roundCount, playerScore);
   } else {
-    dailyRounds = selectRandomRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length), mode);
+    dailyRounds = selectRandomRounds(allRounds, roundCount, mode, playerScore);
   }
   currentRoundIndex = 0;
   totalScore = 0;
@@ -235,6 +237,16 @@ function startRound() {
   $('#score-display').textContent = `${totalScore.toLocaleString()} pts`;
   $('#round-photo').src = r.photoUrl;
   $('#promo-card').classList.add('hidden');
+
+  // Difficulty badge
+  const diffBadge = $('#difficulty-badge');
+  if (diffBadge) {
+    const diff = r.difficulty || 'normal';
+    const diffLabel = diff === 'hard' ? 'Hard ×2' : diff === 'easy' ? 'Easy ×0.5' : 'Normal';
+    diffBadge.textContent = diffLabel;
+    diffBadge.className = `difficulty-badge diff-${diff}`;
+    diffBadge.classList.remove('hidden');
+  }
 
   // Streak indicator
   const streakEl = $('#streak-indicator');
@@ -346,6 +358,10 @@ function revealResult() {
     score = Math.round(2500 * Math.exp(-5 * distKm / 20000));
   }
 
+  // Apply difficulty multiplier (affects XP: hard ×2, normal ×1, easy ×0.5)
+  const diffMultiplier = r.difficulty === 'hard' ? 2 : r.difficulty === 'easy' ? 0.5 : 1;
+  score = Math.round(score * diffMultiplier);
+
   roundScores.push(score);
   totalScore += score;
 
@@ -353,7 +369,7 @@ function revealResult() {
   stopRoundTimer();
 
   // Track streak (perfect = exact, but keep streak alive for great guesses too)
-  if (score === MAX_SCORE_PER_ROUND) currentStreak++;
+  if (score >= MAX_SCORE_PER_ROUND) currentStreak++;
   else if (score >= 3000) { /* maintain streak but don't increment */ }
   else currentStreak = 0;
 
@@ -368,7 +384,7 @@ function revealResult() {
   setMapInteractive(false);
 
   // --- Phase 1: Show map result (highlights + distance line) for 2 seconds ---
-  if (score === MAX_SCORE_PER_ROUND) { playSound('perfect'); highlightCorrect(guessedSubId); triggerConfetti(); }
+  if (score >= MAX_SCORE_PER_ROUND) { playSound('perfect'); highlightCorrect(guessedSubId); triggerConfetti(); }
   else if (score > 3000) { playSound('correct'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
   else { playSound('wrong'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
 
@@ -394,9 +410,10 @@ function revealResult() {
   setTimeout(() => {
     let distText = distKm < 1 ? `${Math.round(distKm * 1000)} m` : distKm < 100 ? `${distKm.toFixed(1)} km` : `${Math.round(distKm).toLocaleString()} km`;
 
-    const isPerfect = score === MAX_SCORE_PER_ROUND;
+    const isPerfect = score >= MAX_SCORE_PER_ROUND;
     $('#result-icon').textContent = isPerfect ? '🎯' : score > 4000 ? '🔥' : score > 2500 ? '👍' : score > 1000 ? '😐' : '😬';
-    $('#result-score').textContent = `+${score.toLocaleString()} pts`;
+    const diffTag = diffMultiplier !== 1 ? ` (×${diffMultiplier})` : '';
+    $('#result-score').textContent = `+${score.toLocaleString()} pts${diffTag}`;
     $('#result-score').className = 'result-score ' + (isPerfect ? 'perfect' : score > 4000 ? 'good' : score > 2500 ? 'ok' : 'bad');
     $('#result-detail').textContent = `${r.locationName}, ${r.country}`;
 
@@ -465,7 +482,7 @@ function endGame() {
   s.totalGames = (s.totalGames || 0) + 1;
   s.totalScore = (s.totalScore || 0) + totalScore;
   s.bestScore = Math.max(s.bestScore || 0, totalScore);
-  s.perfectGuesses = (s.perfectGuesses || 0) + roundScores.filter(x => x === MAX_SCORE_PER_ROUND).length;
+  s.perfectGuesses = (s.perfectGuesses || 0) + roundScores.filter(x => x >= MAX_SCORE_PER_ROUND).length;
   const today = new Date().toDateString();
   if (s.lastPlayDate !== today) {
     const y = new Date(Date.now() - 86400000).toDateString();
@@ -557,7 +574,7 @@ function endGame() {
 
   const bestIdx = roundScores.indexOf(Math.max(...roundScores));
   const worstIdx = roundScores.indexOf(Math.min(...roundScores));
-  const perfects = roundScores.filter(x => x === MAX_SCORE_PER_ROUND).length;
+  const perfects = roundScores.filter(x => x >= MAX_SCORE_PER_ROUND).length;
   const personalBest = totalScore === s.bestScore && s.totalGames > 1;
 
   let summaryHtml = '';
@@ -565,7 +582,7 @@ function endGame() {
   if (perfects > 0) summaryHtml += `<div class="gameover-badge perfects">🎯 ${perfects} Perfect${perfects > 1 ? 's' : ''}</div>`;
 
   $('#gameover-breakdown').innerHTML = levelUpHtml + summaryHtml + roundScores.map((x, i) => {
-    const cls = x === MAX_SCORE_PER_ROUND ? 'perfect' : x > 4000 ? 'good' : x > 2500 ? 'ok' : 'bad';
+    const cls = x >= MAX_SCORE_PER_ROUND ? 'perfect' : x > 4000 ? 'good' : x > 2500 ? 'ok' : 'bad';
     const badge = i === bestIdx ? ' ⭐' : i === worstIdx && roundScores.length > 1 ? '' : '';
     return `<div class="breakdown-row"><span>Round ${i+1}${badge}</span><span class="${cls}">${x.toLocaleString()}</span></div>`;
   }).join('') + xpProgress;
@@ -660,6 +677,7 @@ async function loadRounds(mode) {
           country: r.country_name || '?',
           countryId: r.country_id,
           subdivisionId: r.subdivision_id,
+          difficulty: r.difficulty || 'normal',
           mode: r.mode,
           photoUrl: r.photo_url,
           isPromo: r.is_promo,
@@ -678,6 +696,7 @@ async function loadRounds(mode) {
       country: r.countryName || r.country_name || '?',
       countryId: r.countryId || r.country_id,
       subdivisionId: r.subdivisionId || r.subdivision_id,
+      difficulty: r.difficulty || 'normal',
       mode, photoUrl: r.photoUrl || r.photo_url,
       isPromo: r.isPromo || r.is_promo,
       promoData: r.promoData || r.promo_data,

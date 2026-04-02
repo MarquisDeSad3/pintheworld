@@ -1,5 +1,7 @@
 /* Scoring — Haversine-based, parameterized per country */
 
+import { getDifficultyMix } from './levels.js';
+
 const MAX_SCORE_PER_ROUND = 5000;
 const ROUNDS_PER_GAME = 5;
 
@@ -49,12 +51,60 @@ export function computeMaxDistance(subdivisions) {
 }
 
 /**
- * Select random rounds that the user hasn't played yet.
- * Tracks played round IDs in localStorage per mode.
- * When all rounds have been played, resets the history.
+ * Pick `n` random items from `arr` using `randFn`, removing them from `arr`.
  */
-export function selectRandomRounds(allRounds, count, mode) {
+function pickRandom(arr, n, randFn) {
+  const picked = [];
+  for (let i = 0; i < n && arr.length > 0; i++) {
+    const idx = Math.floor(randFn() * arr.length);
+    picked.push(arr.splice(idx, 1)[0]);
+  }
+  return picked;
+}
+
+/**
+ * Select rounds by difficulty mix based on player level.
+ * Uses `randFn` for shuffle so it works for both random and seeded selection.
+ */
+function selectByDifficulty(available, count, totalScore, randFn) {
+  const mix = getDifficultyMix(totalScore);
+
+  // Split into difficulty buckets (mutable copies)
+  const buckets = { easy: [], normal: [], hard: [] };
+  available.forEach(r => {
+    const d = r.difficulty || 'normal';
+    if (buckets[d]) buckets[d].push(r);
+    else buckets.normal.push(r);
+  });
+
+  // Pick from each bucket according to mix
+  const selected = [];
+  for (const diff of ['hard', 'normal', 'easy']) {
+    selected.push(...pickRandom(buckets[diff], mix[diff], randFn));
+  }
+
+  // If not enough from some bucket, fill with whatever remains
+  if (selected.length < count) {
+    const remaining = [...buckets.easy, ...buckets.normal, ...buckets.hard];
+    selected.push(...pickRandom(remaining, count - selected.length, randFn));
+  }
+
+  // Final shuffle so difficulties aren't grouped
+  for (let i = selected.length - 1; i > 0; i--) {
+    const j = Math.floor(randFn() * (i + 1));
+    [selected[i], selected[j]] = [selected[j], selected[i]];
+  }
+
+  return selected.slice(0, count);
+}
+
+/**
+ * Select random rounds that the user hasn't played yet.
+ * Distributes difficulty based on player level.
+ */
+export function selectRandomRounds(allRounds, count, mode, totalScore) {
   count = count || ROUNDS_PER_GAME;
+  totalScore = totalScore || 0;
 
   // Get history of played round IDs for this mode
   const storageKey = `ptw_played_${mode || 'places'}`;
@@ -72,14 +122,7 @@ export function selectRandomRounds(allRounds, count, mode) {
     available = [...allRounds];
   }
 
-  // Fisher-Yates shuffle with Math.random (truly random, not seeded)
-  const shuffled = [...available];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  const selected = shuffled.slice(0, count);
+  const selected = selectByDifficulty(available, count, totalScore, Math.random);
 
   // Record these rounds as played
   for (const r of selected) playedIds.add(r.id);
@@ -106,18 +149,14 @@ export function getDailySeed() {
 }
 
 /**
- * Select daily challenge rounds — same 10 for ALL players today.
- * Uses seeded shuffle so everyone gets identical rounds.
+ * Select daily challenge rounds — difficulty-aware, seeded per day + player level.
+ * Players at the same level get the same rounds; different levels get different mixes.
  */
-export function selectDailyRounds(allRounds, count) {
+export function selectDailyRounds(allRounds, count, totalScore) {
   count = count || ROUNDS_PER_GAME;
+  totalScore = totalScore || 0;
   const rand = seededRandom(getDailySeed());
-  const shuffled = [...allRounds];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-  return shuffled.slice(0, count);
+  return selectByDifficulty([...allRounds], count, totalScore, rand);
 }
 
 export { MAX_SCORE_PER_ROUND, ROUNDS_PER_GAME };

@@ -79,6 +79,23 @@ export function getLevel(totalScore) {
   return level;
 }
 
+export function getLevelIndex(totalScore) {
+  const xp = scoreToXP(totalScore);
+  for (let i = LEVELS.length - 1; i >= 0; i--) {
+    if (xp >= LEVELS[i].xp) return i;
+  }
+  return 0;
+}
+
+export function getDifficultyMix(totalScore) {
+  const idx = getLevelIndex(totalScore);
+  if (idx <= 5)  return { easy: 3, normal: 2, hard: 0 };
+  if (idx <= 12) return { easy: 2, normal: 2, hard: 1 };
+  if (idx <= 20) return { easy: 1, normal: 2, hard: 2 };
+  if (idx <= 30) return { easy: 0, normal: 2, hard: 3 };
+  return { easy: 0, normal: 1, hard: 4 };
+}
+
 export function getLevelProgress(totalScore) {
   const xp = scoreToXP(totalScore);
   let currentIdx = 0;

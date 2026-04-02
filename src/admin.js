@@ -333,9 +333,11 @@ async function rejectRound(id) {
     return;
   }
 
-  await supabase.from('pending_rounds').update({ status: 'rejected' }).eq('id', id);
+  const { error } = await supabase.from('pending_rounds').update({ status: 'rejected' }).eq('id', id);
+  if (error) { console.error('Reject error:', error); alert(`Error: ${error.message}`); return; }
   playSound('wrong');
   loadPending();
+  loadDashboard();
 }
 
 // ---- Load Active ----
@@ -399,7 +401,11 @@ async function toggleRound(id) {
     return;
   }
   const { data } = await supabase.from('rounds').select('active').eq('id', id).single();
-  if (data) { await supabase.from('rounds').update({ active: !data.active }).eq('id', id); loadActive(); }
+  if (data) {
+    const { error } = await supabase.from('rounds').update({ active: !data.active }).eq('id', id);
+    if (error) { console.error('Toggle error:', error); alert(`Error: ${error.message}`); return; }
+    loadActive();
+  }
 }
 
 async function deleteRound(id) {
@@ -412,9 +418,11 @@ async function deleteRound(id) {
     loadActive();
     return;
   }
-  await supabase.from('rounds').delete().eq('id', id);
+  const { error } = await supabase.from('rounds').delete().eq('id', id);
+  if (error) { console.error('Delete round error:', error); alert(`Error: ${error.message}`); return; }
   playSound('wrong');
   loadActive();
+  loadDashboard();
 }
 
 // ---- Load Promos ----
@@ -443,6 +451,7 @@ async function createRound() {
   const photoUrl = $('#admin-photo-url')?.value.trim();
   const countryId = $('#admin-country-select')?.value;
   const subdivRaw = $('#admin-subdiv-select')?.value;
+  const difficulty = $('#admin-difficulty')?.value || 'normal';
 
   if (!photoUrl || !countryId || !subdivRaw) {
     $('#admin-create-status').textContent = 'Fill all required fields';
@@ -459,7 +468,7 @@ async function createRound() {
     subdivision_name: subdiv.name,
     mode: createMode,
     photo_url: photoUrl,
-    difficulty: 'medium',
+    difficulty,
     active: true,
     is_promo: false,
     submitter_name: 'Admin',
@@ -492,5 +501,6 @@ async function createRound() {
   $('#admin-country-select').value = '';
   $('#admin-subdiv-select').innerHTML = '<option value="">-- Select country first --</option>';
   $('#admin-subdiv-select').disabled = true;
+  $('#admin-difficulty').value = 'normal';
   loadActive();
 }

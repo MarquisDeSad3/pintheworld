@@ -450,6 +450,7 @@
       <div class="game-top">
         <div class="game-info">
           <span id="round-counter">1 / 10</span>
+          <span id="difficulty-badge" class="difficulty-badge hidden"></span>
           <span id="streak-indicator" class="streak-indicator hidden"></span>
           <span id="score-display">0 pts</span>
           <span id="timer-display" class="hidden">0s</span>
@@ -634,6 +635,14 @@
                 <label>Subdivision</label>
                 <select id="admin-subdiv-select" class="submit-input" disabled>
                   <option value="">-- Select country first --</option>
+                </select>
+              </div>
+              <div class="submit-field">
+                <label>Difficulty</label>
+                <select id="admin-difficulty" class="submit-input">
+                  <option value="easy">Easy (XP ×0.5)</option>
+                  <option value="normal" selected>Normal (XP ×1)</option>
+                  <option value="hard">Hard (XP ×2)</option>
                 </select>
               </div>
               <div class="submit-field">

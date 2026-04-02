@@ -462,6 +462,29 @@
 }
 
 /* Streak indicator */
+.difficulty-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.difficulty-badge.diff-easy {
+  background: rgba(16,185,129,0.15);
+  border: 1px solid rgba(16,185,129,0.4);
+  color: #10b981;
+}
+.difficulty-badge.diff-normal {
+  background: rgba(59,130,246,0.15);
+  border: 1px solid rgba(59,130,246,0.4);
+  color: #3b82f6;
+}
+.difficulty-badge.diff-hard {
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.4);
+  color: #ef4444;
+}
 .streak-indicator {
   background: linear-gradient(135deg, rgba(245,158,11,0.2), rgba(239,68,68,0.2));
   border: 1px solid rgba(245,158,11,0.4);
