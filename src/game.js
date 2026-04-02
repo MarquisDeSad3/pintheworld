@@ -38,6 +38,53 @@ let roundTimer = null;
 let roundSeconds = 0;
 let currentStreak = 0;
 
+// Known landmark coordinates for rounds without lat/lng
+const LANDMARK_COORDS = {
+  'Eiffel Tower':[48.858,2.295],'Colosseum':[41.890,12.492],'Big Ben':[51.501,-0.142],
+  'Statue of Liberty':[40.689,-74.044],'Christ the Redeemer':[-22.952,-43.211],
+  'Taj Mahal':[27.175,78.042],'Tokyo Tower':[35.659,139.745],'Great Pyramid':[29.979,31.134],
+  'Sydney Opera House':[-33.857,151.215],'Santiago Bernabeu':[40.453,-3.688],
+  'Brandenburg Gate':[52.516,13.378],'El Capitolio, Havana':[23.114,-82.367],
+  'Palacio de Bellas Artes':[19.435,-99.141],'Red Square':[55.754,37.621],
+  'Obelisco':[-34.604,-58.382],'Burj Khalifa':[25.197,55.274],'Machu Picchu':[-13.163,-72.545],
+  'Gyeongbokgung':[37.580,126.977],'Wat Arun':[13.744,100.489],
+  'Stockholm Old Town':[59.325,18.071],'Belem Tower':[38.692,-9.216],
+  'Nairobi':[-1.292,36.822],'Forbidden City':[39.917,116.397],'Table Mountain':[-33.963,18.403],
+  'Schonbrunn Palace':[48.185,16.312],'Monserrate':[4.606,-74.056],
+  'Parliament Hill':[45.425,-75.700],'Trinidad':[21.802,-79.984],
+  'Western Wall':[31.777,35.234],'Acropolis':[37.972,23.726],
+  'Mont Saint-Michel':[48.636,-1.511],'Sagrada Familia':[41.404,2.175],
+  'Neuschwanstein Castle':[47.558,10.750],'Stonehenge':[51.179,-1.826],
+  'Santorini':[36.393,25.461],'Great Wall of China':[40.432,116.570],
+  'Golden Gate Bridge':[37.820,-122.478],'Grand Canyon':[36.107,-112.113],
+  'Chichen Itza':[20.683,-88.569],'Iguazu Falls':[-25.695,-54.437],
+  'Cartagena':[10.391,-75.514],'Torres del Paine':[-51.000,-73.000],
+  'Salar de Uyuni':[-20.134,-67.489],'Cappadocia':[38.643,34.829],
+  'Dubrovnik':[42.641,18.108],'Hungarian Parliament':[47.507,19.045],
+  'Bran Castle':[45.515,25.367],'Milford Sound':[-44.672,167.926],
+  'Fushimi Inari Shrine':[34.967,135.773],'Hagia Sophia':[41.009,28.980],
+  'Teatro Amazonas':[-3.130,-60.023],'Hawa Mahal':[26.924,75.827],
+  'Jemaa el-Fnaa':[31.626,-7.989],'Porto Ribeira':[41.141,-8.613],
+  'Leaning Tower of Pisa':[43.723,10.397],'Rialto Bridge, Venice':[45.438,12.336],
+  'Milan Cathedral':[45.464,9.192],'Pompeii':[40.751,14.487],
+  'Alhambra':[37.176,-3.588],'Guggenheim Bilbao':[43.269,-2.934],
+  'Tower Bridge':[51.505,-0.075],'Edinburgh Castle':[55.949,-3.200],
+  'Cologne Cathedral':[50.941,6.958],'Amsterdam Canals':[52.370,4.895],
+  'Charles Bridge':[50.086,14.411],'Wawel Castle':[50.054,19.935],
+  'Cliffs of Moher':[52.972,-9.431],'Bern Old City':[46.948,7.448],
+  'Banff National Park':[51.497,-116.028],'Vancouver Skyline':[49.283,-123.121],
+  'Guanajuato':[21.019,-101.257],'Amazon Theatre':[-3.130,-60.023],
+  'Cathedral of Brasilia':[-15.798,-47.876],'Terracotta Army':[34.384,109.278],
+  'Borobudur':[-7.608,110.204],'Petronas Towers':[3.159,101.712],
+  'Valley of the Kings':[25.740,32.601],'Marrakech':[31.630,-7.981],
+  'Mount Kilimanjaro':[-3.076,37.353],'Uluru':[-25.345,131.036],
+  'Hermitage Museum':[59.940,30.314],'Arenal Volcano':[10.463,-84.703],
+  'Tikal':[17.222,-89.623],'Panama Canal':[9.080,-79.681],
+  'Itsukushima Shrine':[34.296,132.320],'Osaka Castle':[34.687,135.526],
+  'Hawa Mahal':[26.924,75.827],'Nyhavn, Copenhagen':[55.680,12.587],
+  'Bergen Bryggen':[60.397,5.325],
+};
+
 // ---- Screens ----
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -274,32 +321,48 @@ function revealResult() {
   const guessedSubId = getSelectedId();
   const guessedInfo = getSubdivisionInfo(guessedSubId);
 
-  // Determine correct subdivision by ID match or lat/lng proximity
-  let correctSubId = null;
+  // Determine correct subdivision from loaded map data.
+  // Round IDs and GeoJSON IDs use different formats, and subdivision names
+  // may differ (e.g. "Bavaria" vs "Bayern", "Giza" vs "Al Jizah").
+  // Solution: use known lat/lng or find the geographically closest subdivision.
   const allSubs = getAllSubdivisionData();
+  const subEntries = Object.entries(allSubs);
 
-  // First: try exact subdivision ID match
-  if (r.subdivisionId && allSubs[r.subdivisionId]) {
-    correctSubId = r.subdivisionId;
+  // Get the reference point for the correct location
+  let refLat, refLng;
+  if (r.lat && r.lng && (r.lat !== 0 || r.lng !== 0)) {
+    // Round has real coordinates
+    refLat = r.lat;
+    refLng = r.lng;
+  } else {
+    // No real coords — use known landmarks database
+    refLat = LANDMARK_COORDS[r.locationName]?.[0] || 0;
+    refLng = LANDMARK_COORDS[r.locationName]?.[1] || 0;
   }
 
-  // Fallback: if round has real lat/lng (not 0,0), find closest subdivision
-  if (!correctSubId && r.lat && r.lng && (r.lat !== 0 || r.lng !== 0)) {
-    let minD = Infinity;
-    for (const [sid, info] of Object.entries(allSubs)) {
-      const d = haversineDistance(info.lat, info.lng, r.lat, r.lng);
+  // Find the closest subdivision to the reference point
+  let correctSubId = null;
+  let minD = Infinity;
+  if (refLat !== 0 || refLng !== 0) {
+    for (const [sid, info] of subEntries) {
+      const d = haversineDistance(info.lat, info.lng, refLat, refLng);
       if (d < minD) { minD = d; correctSubId = sid; }
     }
   }
 
-  // Last fallback: just use the subdivisionId even if not loaded
-  if (!correctSubId) correctSubId = r.subdivisionId;
+  // Fallback: try exact ID match (rarely works but costs nothing)
+  if (!correctSubId && r.subdivisionId && allSubs[r.subdivisionId]) {
+    correctSubId = r.subdivisionId;
+  }
+
+  // Last resort
+  if (!correctSubId && subEntries.length > 0) {
+    correctSubId = subEntries[0][0];
+  }
 
   const correctInfo = getSubdivisionInfo(correctSubId);
-
-  // Use actual location if available, otherwise use subdivision centroid
-  const correctLat = (r.lat && r.lat !== 0) ? r.lat : (correctInfo?.lat || 0);
-  const correctLng = (r.lng && r.lng !== 0) ? r.lng : (correctInfo?.lng || 0);
+  const correctLat = refLat || correctInfo?.lat || 0;
+  const correctLng = refLng || correctInfo?.lng || 0;
 
   // Distance between guessed subdivision centroid and correct location
   const distKm = guessedInfo ? haversineDistance(guessedInfo.lat, guessedInfo.lng, correctLat, correctLng) : 20000;
