@@ -555,7 +555,7 @@
 
           <!-- Pending -->
           <div id="admin-tab-pending" class="admin-tab-content">
-            <h2 class="admin-page-title">Pending Submissions</h2>
+            <h2 class="admin-page-title">Pending Submissions <span id="admin-pending-count" style="font-size:0.8em;color:var(--text-dim)"></span></h2>
             <div class="admin-filters">
               <select id="pending-filter-mode" class="admin-select"><option value="">All</option><option value="places">Places</option><option value="people">People</option></select>
             </div>
@@ -564,10 +564,11 @@
 
           <!-- Active Rounds -->
           <div id="admin-tab-rounds" class="admin-tab-content">
-            <h2 class="admin-page-title">Active Rounds</h2>
+            <h2 class="admin-page-title">Active Rounds <span id="admin-active-count" style="font-size:0.8em;color:var(--text-dim)"></span></h2>
             <div class="admin-filters">
               <select id="admin-filter-country" class="admin-select"><option value="">All countries</option></select>
               <select id="admin-filter-mode" class="admin-select"><option value="">All modes</option><option value="places">Places</option><option value="people">People</option></select>
+              <button id="btn-delete-all-rounds" class="admin-btn admin-btn-delete" style="margin-left:auto">Delete All Rounds</button>
             </div>
             <div id="admin-active-list" class="admin-list"><div class="admin-empty">No active rounds</div></div>
           </div>

@@ -157,6 +157,10 @@ function bindAdminEvents() {
 
   // Create round button
   $('#btn-admin-create').onclick = createRound;
+
+  // Delete all rounds button
+  const deleteAllBtn = $('#btn-delete-all-rounds');
+  if (deleteAllBtn) deleteAllBtn.onclick = deleteAllRounds;
 }
 
 // ---- Load subdivisions for admin create form ----
@@ -215,21 +219,21 @@ async function loadPending() {
     const pending = JSON.parse(localStorage.getItem('ptw_pending_rounds') || '[]');
     if (pending.length === 0) {
       list.innerHTML = '<div class="admin-empty">No pending submissions</div>';
-      $('#admin-pending-count').textContent = '0 pending';
+      const countEl = $('#admin-pending-count'); if (countEl) countEl.textContent = '0 pending';
       return;
     }
     list.innerHTML = pending.map((r, i) => renderPendingCard(r, i)).join('');
-    $('#admin-pending-count').textContent = `${pending.length} pending`;
+    const countEl = $('#admin-pending-count'); if (countEl) countEl.textContent = `${pending.length} pending`;
     bindPendingActions();
     return;
   }
 
   // Supabase
   const { data, error } = await supabase.from('pending_rounds').select('*').eq('status', 'pending').order('created_at', { ascending: false });
-  if (error || !data) { list.innerHTML = '<div class="admin-empty">Error loading</div>'; return; }
-  if (data.length === 0) { list.innerHTML = '<div class="admin-empty">No pending submissions</div>'; $('#admin-pending-count').textContent = '0 pending'; return; }
+  if (error || !data) { console.error('Load pending error:', error); list.innerHTML = '<div class="admin-empty">Error loading</div>'; return; }
+  if (data.length === 0) { list.innerHTML = '<div class="admin-empty">No pending submissions</div>'; const ce = $('#admin-pending-count'); if (ce) ce.textContent = '0 pending'; return; }
   list.innerHTML = data.map(r => renderPendingCard(r)).join('');
-  $('#admin-pending-count').textContent = `${data.length} pending`;
+  const ce = $('#admin-pending-count'); if (ce) ce.textContent = `${data.length} pending`;
   bindPendingActions();
 }
 
@@ -362,17 +366,18 @@ async function loadActive() {
 
   if (isDemoMode) {
     const active = JSON.parse(localStorage.getItem('ptw_active_rounds') || '[]');
-    if (active.length === 0) { list.innerHTML = '<div class="admin-empty">No active rounds</div>'; $('#admin-active-count').textContent = '0 active'; return; }
+    if (active.length === 0) { list.innerHTML = '<div class="admin-empty">No active rounds</div>'; const ce = $('#admin-active-count'); if (ce) ce.textContent = '0 active'; return; }
     list.innerHTML = active.map((r, i) => renderActiveCard(r, i)).join('');
-    $('#admin-active-count').textContent = `${active.length} active`;
+    const ce = $('#admin-active-count'); if (ce) ce.textContent = `${active.length} active`;
     bindActiveActions();
     return;
   }
 
-  const { data } = await supabase.from('rounds').select('*').order('created_at', { ascending: false }).limit(100);
-  if (!data || data.length === 0) { list.innerHTML = '<div class="admin-empty">No active rounds</div>'; $('#admin-active-count').textContent = '0 active'; return; }
+  const { data, error } = await supabase.from('rounds').select('*').order('created_at', { ascending: false }).limit(500);
+  if (error) console.error('Load active error:', error);
+  if (!data || data.length === 0) { list.innerHTML = '<div class="admin-empty">No active rounds</div>'; const ce = $('#admin-active-count'); if (ce) ce.textContent = '0 active'; return; }
   list.innerHTML = data.map(r => renderActiveCard(r)).join('');
-  $('#admin-active-count').textContent = `${data.length} active`;
+  const ce2 = $('#admin-active-count'); if (ce2) ce2.textContent = `${data.length} rounds`;
   bindActiveActions();
 }
 
@@ -441,6 +446,37 @@ async function deleteRound(id) {
   loadDashboard();
 }
 
+// ---- Delete All Rounds ----
+async function deleteAllRounds() {
+  const count = $('#admin-active-count')?.textContent || '';
+  if (!confirm(`DELETE ALL ROUNDS? This will permanently remove all rounds. ${count}`)) return;
+  if (!confirm('Are you absolutely sure? This cannot be undone.')) return;
+
+  if (isDemoMode) {
+    localStorage.setItem('ptw_active_rounds', '[]');
+    playSound('wrong');
+    loadActive();
+    loadDashboard();
+    return;
+  }
+
+  try {
+    // Delete all rounds (Supabase needs a filter, use neq on a non-existent value to match all)
+    const { error } = await supabase.from('rounds').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) {
+      console.error('Delete all rounds error:', error);
+      alert(`Error deleting rounds: ${error.message}`);
+      return;
+    }
+    playSound('wrong');
+    loadActive();
+    loadDashboard();
+  } catch (e) {
+    console.error('Delete all error:', e);
+    alert(`Error: ${e.message}`);
+  }
+}
+
 // ---- Load Promos ----
 async function loadPromos() {
   const list = $('#admin-promos-list');
@@ -450,16 +486,16 @@ async function loadPromos() {
       ...JSON.parse(localStorage.getItem('ptw_pending_rounds') || '[]'),
       ...JSON.parse(localStorage.getItem('ptw_active_rounds') || '[]'),
     ].filter(r => r.isPromo || r.is_promo);
-    if (all.length === 0) { list.innerHTML = '<div class="admin-empty">No promo rounds</div>'; $('#admin-promo-count').textContent = '0 promos'; return; }
+    if (all.length === 0) { list.innerHTML = '<div class="admin-empty">No promo rounds</div>'; const pc = $('#admin-promo-count'); if (pc) pc.textContent = '0 promos'; return; }
     list.innerHTML = all.map((r, i) => renderPendingCard(r, i)).join('');
-    $('#admin-promo-count').textContent = `${all.length} promos`;
+    const pc = $('#admin-promo-count'); if (pc) pc.textContent = `${all.length} promos`;
     return;
   }
 
   const { data } = await supabase.from('rounds').select('*').eq('is_promo', true).order('created_at', { ascending: false });
-  if (!data || data.length === 0) { list.innerHTML = '<div class="admin-empty">No promo rounds</div>'; $('#admin-promo-count').textContent = '0 promos'; return; }
+  if (!data || data.length === 0) { list.innerHTML = '<div class="admin-empty">No promo rounds</div>'; const pc = $('#admin-promo-count'); if (pc) pc.textContent = '0 promos'; return; }
   list.innerHTML = data.map(r => renderActiveCard(r)).join('');
-  $('#admin-promo-count').textContent = `${data.length} promos`;
+  const pc = $('#admin-promo-count'); if (pc) pc.textContent = `${data.length} promos`;
 }
 
 // ---- Create Round ----
