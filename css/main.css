@@ -221,9 +221,23 @@ header > * { pointer-events: auto; }
 .achievement-popup__title { font-size: 0.75rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; }
 .achievement-popup__name { font-weight: 700; }
 
-/* Fix Leaflet SVG overlay border */
-.leaflet-overlay-pane svg { border: none !important; outline: none !important; box-shadow: none !important; }
-.leaflet-pane svg { border: none !important; }
+/* Fix Leaflet SVG overlay border/rectangle */
+.leaflet-overlay-pane svg,
+.leaflet-pane svg,
+.leaflet-map-pane svg,
+.leaflet-overlay-pane,
+.leaflet-map-pane,
+.leaflet-pane {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+/* Hide the SVG renderer border completely */
+.leaflet-container svg {
+  border: none !important;
+  outline: none !important;
+}
+/* Use Canvas renderer instead of SVG to avoid rectangle artifacts */
 
 /* Utility */
 .hidden:not(.screen) { display: none !important; }

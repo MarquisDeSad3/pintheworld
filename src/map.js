@@ -93,6 +93,7 @@ export function initGameMap(containerId) {
     center: [20, 0], zoom: 2, minZoom: 2, maxZoom: 18,
     zoomControl: false, attributionControl: false, worldCopyJump: true,
     boxZoom: false,
+    preferCanvas: true,
   });
   L.control.zoom({ position: 'bottomright' }).addTo(gameMap);
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }).addTo(gameMap);
