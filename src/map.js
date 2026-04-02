@@ -254,6 +254,26 @@ function clearSubdivisions() {
   if (subdivisionsLayer && gameMap) { gameMap.removeLayer(subdivisionsLayer); subdivisionsLayer = null; }
 }
 
+/** Disable/enable map interaction (dragging, zoom, click) */
+export function setMapInteractive(enabled) {
+  if (!gameMap) return;
+  if (enabled) {
+    gameMap.dragging.enable();
+    gameMap.touchZoom.enable();
+    gameMap.doubleClickZoom.enable();
+    gameMap.scrollWheelZoom.enable();
+    gameMap.boxZoom.enable();
+    gameMap.keyboard.enable();
+  } else {
+    gameMap.dragging.disable();
+    gameMap.touchZoom.disable();
+    gameMap.doubleClickZoom.disable();
+    gameMap.scrollWheelZoom.disable();
+    gameMap.boxZoom.disable();
+    gameMap.keyboard.disable();
+  }
+}
+
 export function destroyGameMap() {
   if (gameMap) { gameMap.remove(); gameMap = null; }
   countriesLayer = null; subdivisionsLayer = null; selectedId = null; subdivisionData = {};

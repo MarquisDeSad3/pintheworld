@@ -9,7 +9,7 @@ import {
   initGameMap, initHomeMap, showCountries, showSubdivisions,
   getSelectedId, getSelectedName, getSubdivisionInfo, getAllSubdivisionData,
   highlightCorrect, highlightWrong, drawDistanceLine, resetForNextRound,
-  destroyGameMap, addLabel, fitBoth, fitPoints, getCurrentPhase
+  destroyGameMap, addLabel, fitBoth, fitPoints, setMapInteractive, getCurrentPhase
 } from './map.js';
 import { initAuth, onAuthChange, signInWithGoogle, signOut, getCurrentUser, isSignedIn } from './auth.js';
 import { isAdmin, verifyAdmin, initAdmin } from './admin.js';
@@ -452,6 +452,9 @@ function revealResult() {
     saveLocalStats(s);
   }
 
+  // Disable map interaction during result
+  setMapInteractive(false);
+
   // --- Phase 1: Show map result (highlights + distance line) for 2 seconds ---
   if (score === MAX_SCORE_PER_ROUND) { playSound('perfect'); highlightCorrect(guessedSubId); triggerConfetti(); }
   else if (score > 3000) { playSound('correct'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
@@ -537,6 +540,7 @@ function revealResult() {
 function nextRound() {
   hideModal('modal-result');
   disablePressF();
+  setMapInteractive(true);
   currentRoundIndex++;
   if (currentRoundIndex >= dailyRounds.length) endGame();
   else startRound();
