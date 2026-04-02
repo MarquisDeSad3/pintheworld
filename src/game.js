@@ -232,20 +232,12 @@ async function startDailyChallenge() {
 async function startGame(mode) {
   gameMode = mode;
 
-  // Check play limits (daily challenge is free)
-  if (!isDailyChallenge) {
-    const isPremium = await checkPremium();
-    if (!isPremium && !adPlayGranted) {
-      const plays = getDailyPlays();
-      const limit = isSignedIn() ? PLAYS_SIGNED_IN : PLAYS_GUEST;
-      if (plays >= limit) {
-        if (!isSignedIn()) {
-          showToast(t('signInMore'));
-        } else {
-          showPremiumModal();
-        }
-        return;
-      }
+  // Check play limits (daily challenge is free, signed-in users unlimited for now)
+  if (!isDailyChallenge && !isSignedIn()) {
+    const plays = getDailyPlays();
+    if (plays >= PLAYS_GUEST) {
+      showToast(t('signInMore'));
+      return;
     }
   }
   adPlayGranted = false;
