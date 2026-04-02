@@ -1,7 +1,7 @@
 /* Scoring — Haversine-based, parameterized per country */
 
 const MAX_SCORE_PER_ROUND = 5000;
-const ROUNDS_PER_GAME = 10;
+const ROUNDS_PER_GAME = 5;
 
 /**
  * Haversine distance in km between two lat/lng points
