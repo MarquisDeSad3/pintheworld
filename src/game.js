@@ -273,17 +273,35 @@ function revealResult() {
   const r = dailyRounds[currentRoundIndex];
   const guessedSubId = getSelectedId();
   const guessedInfo = getSubdivisionInfo(guessedSubId);
-  const correctLat = r.lat, correctLng = r.lng;
 
-  // Find closest subdivision to correct location
-  let correctSubId = null, minD = Infinity;
-  for (const [sid, info] of Object.entries(getAllSubdivisionData())) {
-    const d = haversineDistance(info.lat, info.lng, correctLat, correctLng);
-    if (d < minD) { minD = d; correctSubId = sid; }
+  // Determine correct subdivision by ID match or lat/lng proximity
+  let correctSubId = null;
+  const allSubs = getAllSubdivisionData();
+
+  // First: try exact subdivision ID match
+  if (r.subdivisionId && allSubs[r.subdivisionId]) {
+    correctSubId = r.subdivisionId;
   }
+
+  // Fallback: if round has real lat/lng (not 0,0), find closest subdivision
+  if (!correctSubId && r.lat && r.lng && (r.lat !== 0 || r.lng !== 0)) {
+    let minD = Infinity;
+    for (const [sid, info] of Object.entries(allSubs)) {
+      const d = haversineDistance(info.lat, info.lng, r.lat, r.lng);
+      if (d < minD) { minD = d; correctSubId = sid; }
+    }
+  }
+
+  // Last fallback: just use the subdivisionId even if not loaded
+  if (!correctSubId) correctSubId = r.subdivisionId;
+
   const correctInfo = getSubdivisionInfo(correctSubId);
 
-  // Distance
+  // Use actual location if available, otherwise use subdivision centroid
+  const correctLat = (r.lat && r.lat !== 0) ? r.lat : (correctInfo?.lat || 0);
+  const correctLng = (r.lng && r.lng !== 0) ? r.lng : (correctInfo?.lng || 0);
+
+  // Distance between guessed subdivision centroid and correct location
   const distKm = guessedInfo ? haversineDistance(guessedInfo.lat, guessedInfo.lng, correctLat, correctLng) : 20000;
 
   // GeoGuessr-style exponential decay scoring
