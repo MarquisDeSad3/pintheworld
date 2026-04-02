@@ -286,29 +286,19 @@ function revealResult() {
   // Distance
   const distKm = guessedInfo ? haversineDistance(guessedInfo.lat, guessedInfo.lng, correctLat, correctLng) : 20000;
 
-  // Score — BRUTAL scoring system
-  // Perfect = exact subdivision match
-  // Same country, neighbor region = decent
-  // Same country, far region = low
-  // Wrong country = almost nothing
+  // GeoGuessr-style exponential decay scoring
+  // Formula: 5000 * e^(-10 * d / D)
+  // D = map diagonal (~20000 km for world map)
+  // Perfect (exact region match) = always 5000
+  // <150m = 5000, then exponential decay by distance
+  const MAP_DIAGONAL = 20000;
   let score = 0;
   if (guessedSubId === correctSubId) {
-    score = MAX_SCORE_PER_ROUND; // 5000 — only exact match
+    score = MAX_SCORE_PER_ROUND;
+  } else if (distKm < 0.15) {
+    score = MAX_SCORE_PER_ROUND;
   } else {
-    const sameCountry = guessedInfo?.countryId === correctInfo?.countryId;
-    if (sameCountry) {
-      // Same country — score with harsh exponent (12 like CubanGuesser municipalities)
-      const cc = getCountry(guessedInfo.countryId);
-      const maxD = estimateSize(cc);
-      const norm = Math.min(distKm / maxD, 1);
-      score = Math.round(MAX_SCORE_PER_ROUND * Math.pow(1 - norm, 12));
-      // No minimum — if you're far within the country, you get almost nothing
-    } else {
-      // Wrong country — practically zero
-      // Only get something if very close (border region)
-      const norm = Math.min(distKm / 20000, 1);
-      score = Math.round(MAX_SCORE_PER_ROUND * 0.05 * Math.pow(1 - norm, 6));
-    }
+    score = Math.round(MAX_SCORE_PER_ROUND * Math.exp(-10 * distKm / MAP_DIAGONAL));
   }
 
   roundScores.push(score);
@@ -317,8 +307,9 @@ function revealResult() {
   // Stop timer
   stopRoundTimer();
 
-  // Track streak
+  // Track streak (perfect = exact, but keep streak alive for great guesses too)
   if (score === MAX_SCORE_PER_ROUND) currentStreak++;
+  else if (score >= 3000) { /* maintain streak but don't increment */ }
   else currentStreak = 0;
 
   // Track fast guess for achievement
@@ -343,7 +334,6 @@ function revealResult() {
   let distText = distKm < 1 ? `${Math.round(distKm * 1000)} m` : distKm < 100 ? `${distKm.toFixed(1)} km` : `${Math.round(distKm).toLocaleString()} km`;
 
   const isPerfect = score === MAX_SCORE_PER_ROUND;
-  const sameCountry = guessedInfo?.countryId === correctInfo?.countryId;
   $('#result-icon').textContent = isPerfect ? '🎯' : score > 4000 ? '🔥' : score > 2500 ? '👍' : score > 1000 ? '😐' : '😬';
   $('#result-score').textContent = `+${score.toLocaleString()} pts`;
   $('#result-score').className = 'result-score ' + (isPerfect ? 'perfect' : score > 4000 ? 'good' : score > 2500 ? 'ok' : 'bad');
@@ -352,11 +342,11 @@ function revealResult() {
   // Distance with category feedback
   let distLabel = '';
   if (isPerfect) distLabel = 'Exact match!';
-  else if (sameCountry && distKm < 50) distLabel = `${distText} — So close!`;
-  else if (sameCountry && distKm < 200) distLabel = `${distText} — Close`;
-  else if (sameCountry) distLabel = `${distText} — Right country`;
-  else if (distKm < 500) distLabel = `${distText} — Almost!`;
-  else if (distKm < 2000) distLabel = `${distText} — Far`;
+  else if (distKm < 50) distLabel = `${distText} — Amazing!`;
+  else if (distKm < 200) distLabel = `${distText} — So close!`;
+  else if (distKm < 500) distLabel = `${distText} — Close`;
+  else if (distKm < 1500) distLabel = `${distText} — Not bad`;
+  else if (distKm < 5000) distLabel = `${distText} — Far`;
   else distLabel = `${distText} — Very far`;
   $('#result-distance').textContent = distLabel;
   $('#phase-indicator').classList.add('hidden');
@@ -395,11 +385,6 @@ function revealResult() {
   $('#score-display').textContent = `${totalScore.toLocaleString()} pts`;
 }
 
-function estimateSize(c) {
-  if (!c) return 1500;
-  const s = {us:4500,ca:5500,mx:3000,cu:1000,br:4300,ar:3500,co:1600,cl:4300,pe:1800,es:1200,fr:1000,de:900,it:1100,gb:800,jp:1500,kr:500,cn:5000,in:3000,au:4000,ru:9000,tr:1600};
-  return s[c.id] || 1500;
-}
 
 function nextRound() {
   hideModal('modal-result');
@@ -775,11 +760,12 @@ function showScoringHelp() {
     <div class="modal-content" style="max-width:400px">
       <div class="modal-header"><h2>How Scoring Works</h2><button class="modal-close" onclick="this.closest('.modal').classList.add('hidden')">&times;</button></div>
       <div style="font-size:0.85rem;line-height:1.7;color:var(--text-dim)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🎯</span><strong style="color:var(--success)">5,000 pts</strong> — Exact region match</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🔥</span><strong style="color:var(--primary)">1,000-4,999</strong> — Right country, close region</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">👍</span><strong style="color:var(--accent)">100-999</strong> — Right country, far region</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">😬</span><strong style="color:var(--danger)">0-99</strong> — Wrong country</div>
-        <p style="margin-top:12px;padding-top:12px;border-top:1px solid #2a2a3a">Distance matters! The closer your guess to the actual location within the country, the higher your score.</p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🎯</span><strong style="color:var(--success)">5,000 pts</strong> — Exact match or &lt;150m</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🔥</span><strong style="color:var(--primary)">4,000+</strong> — Within ~500 km</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">👍</span><strong style="color:var(--accent)">2,500+</strong> — Within ~1,500 km</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">😐</span><strong style="color:var(--text-dim)">1,000+</strong> — Within ~3,000 km</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">😬</span><strong style="color:var(--danger)">0-999</strong> — More than 5,000 km away</div>
+        <p style="margin-top:12px;padding-top:12px;border-top:1px solid #2a2a3a">Only distance matters! The closer your pin to the real location, the more points you get. Country borders don't affect scoring.</p>
       </div>
     </div>`;
   document.getElementById('app').appendChild(modal);
