@@ -1,7 +1,7 @@
 /* Easter Eggs — Hidden interactions & secrets */
 
 import { playSound } from './sounds.js';
-import { checkAchievements, getUnlockedAchievements, saveUnlockedAchievements } from './achievements.js';
+import { checkAchievements, getUnlockedAchievements } from './achievements.js';
 
 // ---- Console Art ----
 function printConsoleArt() {

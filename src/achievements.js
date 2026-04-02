@@ -1,6 +1,8 @@
-/* Achievement system — 85+ world-themed achievements */
+/* Achievement system — 85+ world-themed achievements with Supabase sync */
 
 import { playSound } from './sounds.js';
+import { supabase, isDemoMode } from './supabase.js';
+import { getCurrentUser, isSignedIn } from './auth.js';
 
 const MAX_SCORE_PER_ROUND = 5000;
 
@@ -163,17 +165,101 @@ export function getAchievementCategories() {
   return cats;
 }
 
-// ---- Persistence ----
+// ---- Persistence (localStorage + Supabase) ----
 const LS_KEY = 'ptw_achievements';
 
+/**
+ * Get unlocked achievements with timestamps.
+ * Returns: { [achievementId]: unlockedAtISO }
+ */
+export function getUnlockedMap() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY)) || {}; } catch { return {}; }
+}
+
+/** Legacy-compatible: returns array of IDs */
 export function getUnlockedAchievements() {
-  try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; }
+  const map = getUnlockedMap();
+  // Handle old format (array of strings)
+  if (Array.isArray(map)) {
+    // Migrate to new format
+    const newMap = {};
+    map.forEach(id => { newMap[id] = new Date().toISOString(); });
+    localStorage.setItem(LS_KEY, JSON.stringify(newMap));
+    return map;
+  }
+  return Object.keys(map);
 }
 
-export function saveUnlockedAchievements(arr) {
-  localStorage.setItem(LS_KEY, JSON.stringify(arr));
+function saveUnlockedMap(map) {
+  localStorage.setItem(LS_KEY, JSON.stringify(map));
 }
 
+// ---- Supabase Sync ----
+
+/** Load achievements from Supabase and merge with localStorage */
+export async function syncAchievements() {
+  if (isDemoMode || !supabase || !isSignedIn()) return;
+  const user = getCurrentUser();
+  if (!user || user.isGuest) return;
+
+  try {
+    const { data } = await supabase
+      .from('user_achievements')
+      .select('achievement_id, unlocked_at')
+      .eq('user_id', user.id);
+
+    if (!data) return;
+
+    const localMap = getUnlockedMap();
+    let changed = false;
+
+    // Merge: union of both sources
+    data.forEach(row => {
+      if (!localMap[row.achievement_id]) {
+        localMap[row.achievement_id] = row.unlocked_at;
+        changed = true;
+      }
+    });
+
+    if (changed) saveUnlockedMap(localMap);
+
+    // Push any local-only achievements to Supabase
+    const remoteIds = new Set(data.map(r => r.achievement_id));
+    const toInsert = Object.entries(localMap)
+      .filter(([id]) => !remoteIds.has(id))
+      .map(([id, ts]) => ({
+        user_id: user.id,
+        achievement_id: id,
+        unlocked_at: ts,
+      }));
+
+    if (toInsert.length > 0) {
+      await supabase.from('user_achievements').insert(toInsert).throwOnError();
+    }
+  } catch (e) {
+    console.error('Achievement sync error:', e);
+  }
+}
+
+/** Save newly unlocked achievements to Supabase */
+async function saveToSupabase(achievementIds) {
+  if (isDemoMode || !supabase || !isSignedIn()) return;
+  const user = getCurrentUser();
+  if (!user || user.isGuest) return;
+
+  try {
+    const rows = achievementIds.map(id => ({
+      user_id: user.id,
+      achievement_id: id,
+      unlocked_at: new Date().toISOString(),
+    }));
+    await supabase.from('user_achievements').upsert(rows, { onConflict: 'user_id,achievement_id' });
+  } catch (e) {
+    console.error('Achievement save error:', e);
+  }
+}
+
+// ---- Check & Unlock ----
 export function checkAchievements(stats, roundScores) {
   const now = new Date();
 
@@ -203,9 +289,6 @@ export function checkAchievements(stats, roundScores) {
     if (isPalindrome(gameTotal)) stats.palindromeScore = true;
   }
 
-  // Duplicate scores in a game (NPC Energy)
-  // Already handled by check function
-
   // "Sus" round — perfect streak broken by a 0
   if (roundScores && roundScores.length >= 2) {
     for (let i = 1; i < roundScores.length; i++) {
@@ -224,28 +307,56 @@ export function checkAchievements(stats, roundScores) {
   // Save updated stats
   localStorage.setItem('ptw_stats', JSON.stringify(stats));
 
-  const unlocked = getUnlockedAchievements();
+  const unlockedMap = getUnlockedMap();
+  // Handle legacy array format
+  const unlockedIds = Array.isArray(unlockedMap) ? unlockedMap : Object.keys(unlockedMap);
+  const newMap = Array.isArray(unlockedMap) ? {} : { ...unlockedMap };
+  if (Array.isArray(unlockedMap)) {
+    unlockedMap.forEach(id => { newMap[id] = new Date().toISOString(); });
+  }
+
   const newlyUnlocked = [];
   ACHIEVEMENTS.forEach(ach => {
-    if (unlocked.includes(ach.id)) return;
+    if (unlockedIds.includes(ach.id)) return;
     try {
       if (ach.check(stats, roundScores)) {
-        unlocked.push(ach.id);
+        newMap[ach.id] = new Date().toISOString();
         newlyUnlocked.push(ach);
       }
     } catch { /* skip */ }
   });
+
   if (newlyUnlocked.length > 0) {
-    saveUnlockedAchievements(unlocked);
-    newlyUnlocked.forEach((ach, i) => {
-      setTimeout(() => showAchievementPopup(ach), 800 + i * 1500);
-    });
+    saveUnlockedMap(newMap);
+    const totalUnlocked = Object.keys(newMap).length;
+    queuePopups(newlyUnlocked, totalUnlocked);
+    // Async save to Supabase (fire and forget)
+    saveToSupabase(newlyUnlocked.map(a => a.id));
   }
   return newlyUnlocked;
 }
 
-function showAchievementPopup(ach) {
+// ---- Popup Queue (one at a time) ----
+let popupQueue = [];
+let popupActive = false;
+
+function queuePopups(achievements, totalUnlocked) {
+  achievements.forEach(ach => {
+    popupQueue.push({ ach, totalUnlocked });
+  });
+  if (!popupActive) showNextPopup();
+}
+
+function showNextPopup() {
+  if (popupQueue.length === 0) { popupActive = false; return; }
+  popupActive = true;
+  const { ach, totalUnlocked } = popupQueue.shift();
+  showAchievementPopup(ach, totalUnlocked);
+}
+
+function showAchievementPopup(ach, totalUnlocked) {
   playSound('perfect');
+  const container = document.getElementById('achievement-container');
   const el = document.createElement('div');
   el.className = 'achievement-popup';
   el.innerHTML = `<div class="achievement-popup__icon">${ach.icon}</div>
@@ -253,8 +364,25 @@ function showAchievementPopup(ach) {
       <div class="achievement-popup__title">Achievement Unlocked!</div>
       <div class="achievement-popup__name">${ach.name}</div>
       <div class="achievement-popup__desc">${ach.desc}</div>
+      <div class="achievement-popup__progress">${totalUnlocked} / ${ACHIEVEMENTS.length}</div>
     </div>`;
-  document.getElementById('achievement-container').appendChild(el);
+  container.appendChild(el);
+
+  // Add sparkle particles
+  for (let i = 0; i < 6; i++) {
+    const spark = document.createElement('span');
+    spark.className = 'ach-sparkle';
+    const angle = (Math.PI * 2 * i) / 6;
+    spark.style.cssText = `--tx:${Math.cos(angle) * 40}px;--ty:${Math.sin(angle) * 40}px;top:50%;left:50%;animation-delay:${i * 0.08}s`;
+    el.appendChild(spark);
+  }
+
   requestAnimationFrame(() => el.classList.add('visible'));
-  setTimeout(() => { el.classList.remove('visible'); setTimeout(() => el.remove(), 500); }, 3500);
+  setTimeout(() => {
+    el.classList.remove('visible');
+    setTimeout(() => {
+      el.remove();
+      showNextPopup();
+    }, 500);
+  }, 4000);
 }

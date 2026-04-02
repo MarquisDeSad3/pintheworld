@@ -3,7 +3,7 @@
 import { playSound } from './sounds.js';
 import { haversineDistance, selectRandomRounds, MAX_SCORE_PER_ROUND, ROUNDS_PER_GAME } from './scoring.js';
 import { getLevel, getLevelProgress, scoreToXP } from './levels.js';
-import { checkAchievements } from './achievements.js';
+import { checkAchievements, ACHIEVEMENTS, getAchievementCategories, getUnlockedAchievements, getUnlockedMap, syncAchievements } from './achievements.js';
 import { COUNTRIES, getCountry } from './countries/index.js';
 import {
   initGameMap, initHomeMap, showCountries, showSubdivisions,
@@ -56,9 +56,13 @@ export async function init() {
   await initAuth();
   await verifyAdmin();
   onAuthChange(async (user) => {
-    if (user && !user.isGuest) await verifyAdmin();
+    if (user && !user.isGuest) {
+      await verifyAdmin();
+      syncAchievements();
+    }
     updateAuthUI(user);
   });
+  syncAchievements();
   updateAuthUI(getCurrentUser());
   bindEvents();
 
@@ -737,6 +741,75 @@ function showPremiumModal() {
   modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
 }
 
+function showAchievementsGallery() {
+  const unlockedMap = getUnlockedMap();
+  const unlockedIds = Array.isArray(unlockedMap) ? unlockedMap : Object.keys(unlockedMap);
+  const cats = getAchievementCategories();
+  const catNames = Object.keys(cats);
+  const total = ACHIEVEMENTS.length;
+  const count = unlockedIds.length;
+  const pct = Math.round((count / total) * 100);
+
+  // Progress bar
+  $('#ach-progress').innerHTML = `
+    <div class="ach-progress-text"><strong>${count}</strong> / ${total} Unlocked</div>
+    <div class="ach-progress-bar"><div class="ach-progress-fill" style="width:${pct}%"></div></div>`;
+
+  // Category tabs
+  $('#ach-tabs').innerHTML = `<button class="ach-tab active" data-cat="all">All</button>` +
+    catNames.map(c => {
+      const catCount = cats[c].filter(a => unlockedIds.includes(a.id)).length;
+      return `<button class="ach-tab" data-cat="${c}">${c} <span style="opacity:0.5">${catCount}</span></button>`;
+    }).join('');
+
+  function renderGrid(filter) {
+    const achs = filter === 'all' ? ACHIEVEMENTS : (cats[filter] || []);
+    // Sort: unlocked first, then locked
+    const sorted = [...achs].sort((a, b) => {
+      const aU = unlockedIds.includes(a.id) ? 0 : 1;
+      const bU = unlockedIds.includes(b.id) ? 0 : 1;
+      return aU - bU;
+    });
+
+    $('#ach-grid').innerHTML = sorted.map(ach => {
+      const isUnlocked = unlockedIds.includes(ach.id);
+      const isSecret = ach.cat === 'Secret';
+      const cls = isUnlocked ? 'unlocked' : (isSecret ? 'secret locked' : 'locked');
+      const name = (!isUnlocked && isSecret) ? '???' : ach.name;
+      const desc = (!isUnlocked && isSecret) ? 'Hidden achievement' : ach.desc;
+      const icon = (!isUnlocked && isSecret) ? '❓' : ach.icon;
+
+      let dateHtml = '';
+      if (isUnlocked && !Array.isArray(unlockedMap) && unlockedMap[ach.id]) {
+        const d = new Date(unlockedMap[ach.id]);
+        dateHtml = `<div class="ach-date">${d.toLocaleDateString()}</div>`;
+      }
+
+      return `<div class="ach-card ${cls}">
+        <div class="ach-icon">${icon}</div>
+        <div class="ach-info">
+          <div class="ach-name">${name}</div>
+          <div class="ach-desc">${desc}</div>
+          ${dateHtml}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  renderGrid('all');
+
+  // Tab click handlers
+  document.querySelectorAll('.ach-tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.ach-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      renderGrid(tab.dataset.cat);
+    };
+  });
+
+  showModal('modal-achievements');
+}
+
 function bindEvents() {
   $('#btn-auth').onclick=()=>{isSignedIn()?signOut():signInWithGoogle();};
   $('#btn-back').onclick=()=>{
@@ -785,8 +858,11 @@ function bindEvents() {
         <div class="xp-progress-bar"><div class="xp-progress-fill" style="width:${Math.round(li.progress*100)}%"></div></div>
         <div class="xp-next-level">${(li.next.xp - xpNow).toLocaleString()} XP to next level</div>
       </div>` : '<div style="color:var(--accent);font-size:0.85rem;margin-bottom:12px">Max level reached!</div>';
-    $('#profile-content').innerHTML=`<div class="profile-avatar">${l.icon}</div><h3>${u?.displayName||'Guest'} ${premBadge}</h3><div class="profile-level">${l.icon} ${l.name}</div>${xpBar}<div class="profile-stats"><div><strong>${(s.totalGames||0).toLocaleString()}</strong><br>Games</div><div><strong>${(s.totalScore||0).toLocaleString()}</strong><br>Score</div><div><strong>${s.streak||0}</strong><br>Streak</div><div><strong>${s.perfectGuesses||0}</strong><br>Perfects</div></div>`;
+    const achCount = getUnlockedAchievements().length;
+    const achTotal = ACHIEVEMENTS.length;
+    $('#profile-content').innerHTML=`<div class="profile-avatar">${l.icon}</div><h3>${u?.displayName||'Guest'} ${premBadge}</h3><div class="profile-level">${l.icon} ${l.name}</div>${xpBar}<div class="profile-stats"><div><strong>${(s.totalGames||0).toLocaleString()}</strong><br>Games</div><div><strong>${(s.totalScore||0).toLocaleString()}</strong><br>Score</div><div><strong>${s.streak||0}</strong><br>Streak</div><div><strong>${s.perfectGuesses||0}</strong><br>Perfects</div></div><button class="btn-achievements" id="btn-open-achievements">🏆 Achievements <span style="opacity:0.7">${achCount} / ${achTotal}</span></button>`;
     showModal('modal-profile');
+    $('#btn-open-achievements').onclick = () => { hideModal('modal-profile'); showAchievementsGallery(); };
   };
   // Create levels
   $('#btn-create-levels').onclick = () => {
