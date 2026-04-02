@@ -129,7 +129,7 @@ function bindWizardEvents() {
     isPromo = $('#promo-toggle').checked;
     if (isPromo) {
       $('#promo-section').classList.remove('hidden');
-      $('#btn-submit-level').textContent = 'Submit & Pay';
+      $('#btn-submit-level').textContent = isCupidoFree() ? 'Submit Cupido (Free!)' : 'Submit & Pay';
     } else {
       $('#promo-section').classList.add('hidden');
       $('#btn-submit-level').textContent = 'Submit Level (Free)';
@@ -250,9 +250,17 @@ function updateModeTexts() {
   if (upload) upload.classList.toggle('mode-people', isPeople);
 }
 
+// Cupido (people) mode is FREE until May 2, 2026 (launch month promo)
+const CUPIDO_FREE_UNTIL = new Date('2026-05-02T23:59:59');
+function isCupidoFree() { return submitMode === 'people' && new Date() < CUPIDO_FREE_UNTIL; }
+
 function updatePromoPrice() {
   const isPeople = submitMode === 'people';
-  $('#promo-price').textContent = isPeople ? '$6.99 USD' : '$29.99 USD';
+  if (isCupidoFree()) {
+    $('#promo-price').innerHTML = '<span style="text-decoration:line-through;opacity:0.5">$6.99 USD</span> <strong style="color:var(--success)">FREE — Launch month!</strong>';
+  } else {
+    $('#promo-price').textContent = isPeople ? '$6.99 USD' : '$29.99 USD';
+  }
 }
 
 function updatePreviewLinks() {
@@ -284,7 +292,11 @@ function buildFinalPreview() {
   // Promo preview
   if (isPromo) {
     $('#final-promo-preview').classList.remove('hidden');
-    $('#btn-submit-level').textContent = submitMode === 'people' ? 'Submit & Pay $6.99' : 'Submit & Pay $29.99';
+    if (isCupidoFree()) {
+      $('#btn-submit-level').textContent = 'Submit Cupido (Free!)';
+    } else {
+      $('#btn-submit-level').textContent = submitMode === 'people' ? 'Submit & Pay $6.99' : 'Submit & Pay $29.99';
+    }
   } else {
     $('#final-promo-preview').classList.add('hidden');
     $('#btn-submit-level').textContent = 'Submit Level (Free)';
@@ -320,7 +332,7 @@ async function submitLevel() {
       is_promo: isPromo,
       submitter_name: $('#submit-name').value.trim() || 'Anonymous',
       submitter_id: (user && !user.isGuest) ? user.id : null,
-      status: isPromo ? 'pending_payment' : 'pending',
+      status: (isPromo && !isCupidoFree()) ? 'pending_payment' : 'pending',
     };
 
     if (isPromo) {
@@ -339,8 +351,8 @@ async function submitLevel() {
       const { data: inserted, error } = await supabase.from('pending_rounds').insert(round).select().single();
       if (error) { showStatus(`Error: ${error.message}`, 'error'); btn.disabled = false; return; }
 
-      // If promo, redirect to Stripe checkout
-      if (isPromo && inserted?.id) {
+      // If promo and NOT free cupido, redirect to Stripe checkout
+      if (isPromo && !isCupidoFree() && inserted?.id) {
         btn.textContent = 'Redirecting to payment...';
         const paid = await payPromo(submitMode, inserted.id);
         if (!paid) {
