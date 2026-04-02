@@ -294,17 +294,21 @@ async function approveRound(id) {
   }
 
   // Supabase: move from pending to rounds
-  const { data: pending } = await supabase.from('pending_rounds').select('*').eq('id', id).single();
-  if (!pending) return;
+  const { data: pending, error: fetchErr } = await supabase.from('pending_rounds').select('*').eq('id', id).single();
+  if (fetchErr || !pending) {
+    console.error('Fetch pending error:', fetchErr);
+    alert(`Error fetching pending round: ${fetchErr?.message || 'not found'}`);
+    return;
+  }
 
-  await supabase.from('rounds').insert({
+  const { error: insertErr } = await supabase.from('rounds').insert({
     country_id: pending.country_id,
     subdivision_id: pending.subdivision_id,
     subdivision_name: pending.subdivision_name,
     country_name: pending.country_name,
     mode: pending.mode,
     photo_url: pending.photo_url,
-    difficulty: pending.difficulty,
+    difficulty: pending.difficulty || 'normal',
     is_promo: pending.is_promo,
     promo_data: pending.promo_data,
     submitter_name: pending.submitter_name,
@@ -312,11 +316,23 @@ async function approveRound(id) {
     approved_at: new Date().toISOString(),
     active: true,
   });
+  if (insertErr) {
+    console.error('Insert round error:', insertErr);
+    alert(`Error creating round: ${insertErr.message}`);
+    return;
+  }
 
-  await supabase.from('pending_rounds').update({ status: 'approved' }).eq('id', id);
+  const { error: updateErr } = await supabase.from('pending_rounds').update({ status: 'approved' }).eq('id', id);
+  if (updateErr) {
+    console.error('Update pending error:', updateErr);
+    alert(`Error updating pending status: ${updateErr.message}`);
+    return;
+  }
+
   playSound('correct');
   loadPending();
   loadActive();
+  loadDashboard();
 }
 
 // ---- Reject ----
