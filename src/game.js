@@ -431,7 +431,7 @@ function revealResult() {
     saveLocalStats(s);
   }
 
-  // Sound & highlight
+  // --- Phase 1: Show map result (highlights + distance line) for 2 seconds ---
   if (score === MAX_SCORE_PER_ROUND) { playSound('perfect'); highlightCorrect(guessedSubId); triggerConfetti(); }
   else if (score > 3000) { playSound('correct'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
   else { playSound('wrong'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
@@ -443,58 +443,64 @@ function revealResult() {
   if (correctInfo) addLabel([correctInfo.lat, correctInfo.lng], correctInfo.name, 'map-label correct-label');
   if (guessedSubId !== correctSubId && guessedInfo) addLabel([guessedInfo.lat, guessedInfo.lng], guessedInfo.name, 'map-label wrong-label');
 
-  let distText = distKm < 1 ? `${Math.round(distKm * 1000)} m` : distKm < 100 ? `${distKm.toFixed(1)} km` : `${Math.round(distKm).toLocaleString()} km`;
-
-  const isPerfect = score === MAX_SCORE_PER_ROUND;
-  $('#result-icon').textContent = isPerfect ? '🎯' : score > 4000 ? '🔥' : score > 2500 ? '👍' : score > 1000 ? '😐' : '😬';
-  $('#result-score').textContent = `+${score.toLocaleString()} pts`;
-  $('#result-score').className = 'result-score ' + (isPerfect ? 'perfect' : score > 4000 ? 'good' : score > 2500 ? 'ok' : 'bad');
-  $('#result-detail').textContent = `${r.locationName}, ${r.country}`;
-
-  // Distance with category feedback
-  let distLabel = '';
-  if (isPerfect) distLabel = 'Exact match!';
-  else if (distKm < 50) distLabel = `${distText} — Amazing!`;
-  else if (distKm < 200) distLabel = `${distText} — So close!`;
-  else if (distKm < 500) distLabel = `${distText} — Close`;
-  else if (distKm < 1500) distLabel = `${distText} — Not bad`;
-  else if (distKm < 5000) distLabel = `${distText} — Far`;
-  else distLabel = `${distText} — Very far`;
-  $('#result-distance').textContent = distLabel;
   $('#phase-indicator').classList.add('hidden');
+  $('#btn-confirm').disabled = true;
+  $('#btn-confirm').textContent = sameCountry ? '✓ Correct country!' : '✗ Wrong country';
 
-  // Show promo card if this round has promo data
-  const promoCard = $('#result-promo-card');
-  if (r.isPromo && r.promoData && promoCard) {
-    const pd = r.promoData;
-    const isPeoplPromo = r.mode === 'people';
-    promoCard.className = `result-promo-card ${isPeoplPromo ? 'cupido-card' : ''}`;
-    promoCard.innerHTML = `
-      <div class="result-promo-photo" style="aspect-ratio:${isPeoplPromo ? '9/16' : '16/9'}">
-        <img src="${r.photoUrl}" />
-      </div>
-      <div class="result-promo-info">
-        <div class="result-promo-name">${pd.name || ''}</div>
-        <div class="result-promo-bio">${pd.bio || ''}</div>
-        <div class="result-promo-links">
-          ${pd.instagram ? `<a href="https://instagram.com/${pd.instagram.replace('@','')}" target="_blank">📸 ${pd.instagram}</a>` : ''}
-          ${pd.whatsapp ? `<a href="https://wa.me/${pd.whatsapp.replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>` : ''}
-          ${pd.telegram ? `<a href="https://t.me/${pd.telegram.replace('@','')}" target="_blank">✈️ Telegram</a>` : ''}
-          ${pd.website ? `<a href="${pd.website}" target="_blank">🌐 Website</a>` : ''}
-          ${pd.phone ? `<a href="tel:${pd.phone}">📞 ${pd.phone}</a>` : ''}
+  // --- Phase 2: After 2s delay, show score modal ---
+  setTimeout(() => {
+    let distText = distKm < 1 ? `${Math.round(distKm * 1000)} m` : distKm < 100 ? `${distKm.toFixed(1)} km` : `${Math.round(distKm).toLocaleString()} km`;
+
+    const isPerfect = score === MAX_SCORE_PER_ROUND;
+    $('#result-icon').textContent = isPerfect ? '🎯' : score > 4000 ? '🔥' : score > 2500 ? '👍' : score > 1000 ? '😐' : '😬';
+    $('#result-score').textContent = `+${score.toLocaleString()} pts`;
+    $('#result-score').className = 'result-score ' + (isPerfect ? 'perfect' : score > 4000 ? 'good' : score > 2500 ? 'ok' : 'bad');
+    $('#result-detail').textContent = `${r.locationName}, ${r.country}`;
+
+    // Distance with category feedback
+    let distLabel = '';
+    if (isPerfect) distLabel = 'Exact match!';
+    else if (distKm < 50) distLabel = `${distText} — Amazing!`;
+    else if (distKm < 200) distLabel = `${distText} — So close!`;
+    else if (distKm < 500) distLabel = `${distText} — Close`;
+    else if (distKm < 1500) distLabel = `${distText} — Not bad`;
+    else if (distKm < 5000) distLabel = `${distText} — Far`;
+    else distLabel = `${distText} — Very far`;
+    $('#result-distance').textContent = distLabel;
+
+    // Show promo card if this round has promo data
+    const promoCard = $('#result-promo-card');
+    if (r.isPromo && r.promoData && promoCard) {
+      const pd = r.promoData;
+      const isPeoplPromo = r.mode === 'people';
+      promoCard.className = `result-promo-card ${isPeoplPromo ? 'cupido-card' : ''}`;
+      promoCard.innerHTML = `
+        <div class="result-promo-photo" style="aspect-ratio:${isPeoplPromo ? '9/16' : '16/9'}">
+          <img src="${r.photoUrl}" />
         </div>
-      </div>`;
-    promoCard.classList.remove('hidden');
-  } else if (promoCard) {
-    promoCard.classList.add('hidden');
-  }
+        <div class="result-promo-info">
+          <div class="result-promo-name">${pd.name || ''}</div>
+          <div class="result-promo-bio">${pd.bio || ''}</div>
+          <div class="result-promo-links">
+            ${pd.instagram ? `<a href="https://instagram.com/${pd.instagram.replace('@','')}" target="_blank">📸 ${pd.instagram}</a>` : ''}
+            ${pd.whatsapp ? `<a href="https://wa.me/${pd.whatsapp.replace(/\D/g,'')}" target="_blank">💬 WhatsApp</a>` : ''}
+            ${pd.telegram ? `<a href="https://t.me/${pd.telegram.replace('@','')}" target="_blank">✈️ Telegram</a>` : ''}
+            ${pd.website ? `<a href="${pd.website}" target="_blank">🌐 Website</a>` : ''}
+            ${pd.phone ? `<a href="tel:${pd.phone}">📞 ${pd.phone}</a>` : ''}
+          </div>
+        </div>`;
+      promoCard.classList.remove('hidden');
+    } else if (promoCard) {
+      promoCard.classList.add('hidden');
+    }
 
-  // Enable "Press F" easter egg on bad scores
-  if (score < 1000) enablePressF();
-  else disablePressF();
+    // Enable "Press F" easter egg on bad scores
+    if (score < 1000) enablePressF();
+    else disablePressF();
 
-  showModal('modal-result');
-  $('#score-display').textContent = `${totalScore.toLocaleString()} pts`;
+    showModal('modal-result');
+    $('#score-display').textContent = `${totalScore.toLocaleString()} pts`;
+  }, 2000);
 }
 
 
