@@ -34,6 +34,9 @@ let totalScore = 0;
 let roundScores = [];
 let guessedCountryId = null;
 let adPlayGranted = false;
+let roundTimer = null;
+let roundSeconds = 0;
+let currentStreak = 0;
 
 // ---- Screens ----
 function showScreen(id) {
@@ -169,6 +172,12 @@ async function startGame(mode) {
   currentRoundIndex = 0;
   totalScore = 0;
   roundScores = [];
+  currentStreak = 0;
+
+  // Show first-time tutorial
+  if (!localStorage.getItem('ptw_tutorial_done')) {
+    showTutorial();
+  }
 
   showScreen('screen-game');
   $('#btn-back').classList.remove('hidden');
@@ -185,6 +194,20 @@ function startRound() {
   $('#score-display').textContent = `${totalScore.toLocaleString()} pts`;
   $('#round-photo').src = r.photoUrl;
   $('#promo-card').classList.add('hidden');
+
+  // Streak indicator
+  const streakEl = $('#streak-indicator');
+  if (streakEl) {
+    if (currentStreak >= 2) {
+      streakEl.textContent = `🔥${currentStreak}`;
+      streakEl.classList.remove('hidden');
+    } else {
+      streakEl.classList.add('hidden');
+    }
+  }
+
+  // Start round timer
+  startRoundTimer();
 
   resetForNextRound();
   guessedCountryId = null;
@@ -291,8 +314,22 @@ function revealResult() {
   roundScores.push(score);
   totalScore += score;
 
+  // Stop timer
+  stopRoundTimer();
+
+  // Track streak
+  if (score === MAX_SCORE_PER_ROUND) currentStreak++;
+  else currentStreak = 0;
+
+  // Track fast guess for achievement
+  if (roundSeconds <= 3) {
+    const s = getLocalStats();
+    s.fastGuess = true;
+    saveLocalStats(s);
+  }
+
   // Sound & highlight
-  if (score === MAX_SCORE_PER_ROUND) { playSound('perfect'); highlightCorrect(guessedSubId); }
+  if (score === MAX_SCORE_PER_ROUND) { playSound('perfect'); highlightCorrect(guessedSubId); triggerConfetti(); }
   else if (score > 3000) { playSound('correct'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
   else { playSound('wrong'); highlightWrong(guessedSubId); highlightCorrect(correctSubId); }
 
@@ -306,11 +343,22 @@ function revealResult() {
   let distText = distKm < 1 ? `${Math.round(distKm * 1000)} m` : distKm < 100 ? `${distKm.toFixed(1)} km` : `${Math.round(distKm).toLocaleString()} km`;
 
   const isPerfect = score === MAX_SCORE_PER_ROUND;
+  const sameCountry = guessedInfo?.countryId === correctInfo?.countryId;
   $('#result-icon').textContent = isPerfect ? '🎯' : score > 4000 ? '🔥' : score > 2500 ? '👍' : score > 1000 ? '😐' : '😬';
   $('#result-score').textContent = `+${score.toLocaleString()} pts`;
   $('#result-score').className = 'result-score ' + (isPerfect ? 'perfect' : score > 4000 ? 'good' : score > 2500 ? 'ok' : 'bad');
   $('#result-detail').textContent = `${r.locationName}, ${r.country}`;
-  $('#result-distance').textContent = isPerfect ? 'Nailed it!' : `${distText} away`;
+
+  // Distance with category feedback
+  let distLabel = '';
+  if (isPerfect) distLabel = 'Exact match!';
+  else if (sameCountry && distKm < 50) distLabel = `${distText} — So close!`;
+  else if (sameCountry && distKm < 200) distLabel = `${distText} — Close`;
+  else if (sameCountry) distLabel = `${distText} — Right country`;
+  else if (distKm < 500) distLabel = `${distText} — Almost!`;
+  else if (distKm < 2000) distLabel = `${distText} — Far`;
+  else distLabel = `${distText} — Very far`;
+  $('#result-distance').textContent = distLabel;
   $('#phase-indicator').classList.add('hidden');
 
   // Show promo card if this round has promo data
@@ -449,7 +497,7 @@ function endGame() {
   let levelUpHtml = '';
   if (leveledUp) {
     levelUpHtml = `<div class="level-up-banner"><div class="level-up-title">Level Up!</div><div class="level-up-icon">${newLevel.icon}</div><div class="level-up-name">${newLevel.name}</div></div>`;
-    playSound('perfect');
+    playSound('levelup');
   }
 
   // XP progress bar
@@ -460,9 +508,20 @@ function endGame() {
       <div class="xp-next-level">${(li.next.xp - scoreToXP(s.totalScore)).toLocaleString()} XP to next level</div>
     </div>` : '';
 
-  $('#gameover-breakdown').innerHTML = levelUpHtml + roundScores.map((x, i) =>
-    `<div class="breakdown-row"><span>Round ${i+1}</span><span class="${x===MAX_SCORE_PER_ROUND?'perfect':x>4000?'good':x>2500?'ok':'bad'}">${x.toLocaleString()}</span></div>`
-  ).join('') + xpProgress;
+  const bestIdx = roundScores.indexOf(Math.max(...roundScores));
+  const worstIdx = roundScores.indexOf(Math.min(...roundScores));
+  const perfects = roundScores.filter(x => x === MAX_SCORE_PER_ROUND).length;
+  const personalBest = totalScore === s.bestScore && s.totalGames > 1;
+
+  let summaryHtml = '';
+  if (personalBest) summaryHtml += `<div class="gameover-badge best">New Personal Best!</div>`;
+  if (perfects > 0) summaryHtml += `<div class="gameover-badge perfects">🎯 ${perfects} Perfect${perfects > 1 ? 's' : ''}</div>`;
+
+  $('#gameover-breakdown').innerHTML = levelUpHtml + summaryHtml + roundScores.map((x, i) => {
+    const cls = x === MAX_SCORE_PER_ROUND ? 'perfect' : x > 4000 ? 'good' : x > 2500 ? 'ok' : 'bad';
+    const badge = i === bestIdx ? ' ⭐' : i === worstIdx && roundScores.length > 1 ? '' : '';
+    return `<div class="breakdown-row"><span>Round ${i+1}${badge}</span><span class="${cls}">${x.toLocaleString()}</span></div>`;
+  }).join('') + xpProgress;
 
   // Share platform buttons
   const shareArea = document.querySelector('.gameover-actions');
@@ -630,6 +689,101 @@ function getDemoRounds() {
     }));
 
   return [...base, ...extra];
+}
+
+// ---- Confetti on perfect score ----
+function triggerConfetti() {
+  const container = document.createElement('div');
+  container.className = 'easter-confetti';
+  const emojis = ['🎯', '⭐', '✨', '🔥', '💎', '🏆'];
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('span');
+    p.className = 'confetti-particle';
+    p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    p.style.left = `${Math.random() * 100}%`;
+    p.style.animationDelay = `${Math.random() * 0.8}s`;
+    p.style.fontSize = `${16 + Math.random() * 16}px`;
+    container.appendChild(p);
+  }
+  document.body.appendChild(container);
+  setTimeout(() => container.remove(), 3500);
+}
+
+// ---- Round timer ----
+function startRoundTimer() {
+  roundSeconds = 0;
+  stopRoundTimer();
+  const timerEl = $('#timer-display');
+  if (timerEl) {
+    timerEl.classList.remove('hidden', 'timer-warning');
+    timerEl.textContent = '0s';
+  }
+  roundTimer = setInterval(() => {
+    roundSeconds++;
+    if (timerEl) {
+      timerEl.textContent = `${roundSeconds}s`;
+      if (roundSeconds >= 25) timerEl.classList.add('timer-warning');
+    }
+  }, 1000);
+}
+
+function stopRoundTimer() {
+  if (roundTimer) { clearInterval(roundTimer); roundTimer = null; }
+}
+
+// ---- Tutorial (first-time only) ----
+function showTutorial() {
+  const existing = $('#modal-tutorial');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-tutorial';
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="text-align:center;max-width:420px">
+      <div style="font-size:48px;margin-bottom:8px">🌍</div>
+      <h2 style="margin:0 0 12px">How to Play</h2>
+      <div style="text-align:left;color:var(--text-dim);font-size:0.85rem;line-height:1.6">
+        <p><strong>1.</strong> You'll see a photo of a real place</p>
+        <p><strong>2.</strong> Click a <strong>country</strong> on the map</p>
+        <p><strong>3.</strong> Then select the exact <strong>region</strong> within that country</p>
+        <p><strong>4.</strong> The closer your guess, the more points you earn!</p>
+        <p style="color:var(--accent);margin-top:12px">🎯 <strong>5,000 pts</strong> = exact region match</p>
+      </div>
+      <button id="btn-tutorial-ok" class="btn-primary" style="width:100%;margin-top:16px;padding:14px;font-size:1rem">
+        Got it!
+      </button>
+    </div>`;
+  document.getElementById('app').appendChild(modal);
+
+  $('#btn-tutorial-ok').onclick = () => {
+    modal.classList.add('hidden');
+    localStorage.setItem('ptw_tutorial_done', 'true');
+    setTimeout(() => modal.remove(), 300);
+  };
+}
+
+// ---- Scoring Help ----
+function showScoringHelp() {
+  const existing = $('#modal-scoring');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'modal-scoring';
+  modal.className = 'modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width:400px">
+      <div class="modal-header"><h2>How Scoring Works</h2><button class="modal-close" onclick="this.closest('.modal').classList.add('hidden')">&times;</button></div>
+      <div style="font-size:0.85rem;line-height:1.7;color:var(--text-dim)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🎯</span><strong style="color:var(--success)">5,000 pts</strong> — Exact region match</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🔥</span><strong style="color:var(--primary)">1,000-4,999</strong> — Right country, close region</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">👍</span><strong style="color:var(--accent)">100-999</strong> — Right country, far region</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">😬</span><strong style="color:var(--danger)">0-99</strong> — Wrong country</div>
+        <p style="margin-top:12px;padding-top:12px;border-top:1px solid #2a2a3a">Distance matters! The closer your guess to the actual location within the country, the higher your score.</p>
+      </div>
+    </div>`;
+  document.getElementById('app').appendChild(modal);
+  modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden'); };
 }
 
 function getWeekKey() {

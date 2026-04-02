@@ -326,10 +326,11 @@
       <div class="game-top">
         <div class="game-info">
           <span id="round-counter">1 / 10</span>
+          <span id="streak-indicator" class="streak-indicator hidden"></span>
           <span id="score-display">0 pts</span>
-          <span id="timer-display" class="hidden">30s</span>
+          <span id="timer-display" class="hidden">0s</span>
         </div>
-        <div id="round-photo-container" class="photo-container">
+        <div id="round-photo-container" class="photo-container" onclick="this.classList.toggle('expanded')">
           <img id="round-photo" src="" alt="Guess this!" />
         </div>
         <div id="promo-card" class="promo-card hidden">

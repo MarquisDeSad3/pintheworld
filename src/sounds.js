@@ -62,6 +62,20 @@ export function playSound(type) {
         setTimeout(() => playTone(800 + Math.random() * 400, 0.03, 'square', 0.06), i * 60);
       }
       setTimeout(() => playTone(400, 0.15, 'sine', 0.1), 350);
+    } else if (type === 'levelup') {
+      // Triumphant fanfare
+      playTone(523, 0.15, 'sine', 0.14);
+      setTimeout(() => playTone(659, 0.15, 'sine', 0.14), 120);
+      setTimeout(() => playTone(784, 0.15, 'sine', 0.16), 240);
+      setTimeout(() => playTone(1047, 0.2, 'sine', 0.18), 360);
+      setTimeout(() => playTone(784, 0.1, 'sine', 0.12), 500);
+      setTimeout(() => playTone(1047, 0.5, 'triangle', 0.2), 580);
+    } else if (type === 'tick') {
+      playTone(1000, 0.03, 'square', 0.04);
+    } else if (type === 'timeup') {
+      playTone(400, 0.15, 'sawtooth', 0.1);
+      setTimeout(() => playTone(300, 0.15, 'sawtooth', 0.08), 150);
+      setTimeout(() => playTone(200, 0.3, 'sawtooth', 0.06), 300);
     } else if (type === 'secret') {
       // Mysterious discovery chime
       playTone(392, 0.2, 'sine', 0.1);
