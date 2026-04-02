@@ -38,6 +38,34 @@ let roundTimer = null;
 let roundSeconds = 0;
 let currentStreak = 0;
 
+// Country centers (lat, lng) — for distance between countries
+const COUNTRY_CENTERS = {
+  us:[39.8,-98.6],ca:[56.1,-106.3],mx:[23.6,-102.5],cu:[21.5,-80.0],br:[-14.2,-51.9],
+  ar:[-38.4,-63.6],co:[4.6,-74.1],cl:[-35.7,-71.5],pe:[-9.2,-75.0],ve:[6.4,-66.6],
+  ec:[-1.8,-78.2],bo:[-16.3,-63.6],py:[-23.4,-58.4],uy:[-32.5,-55.8],cr:[9.7,-84.1],
+  pa:[8.5,-80.8],gt:[15.8,-90.2],fr:[46.2,2.2],es:[40.5,-3.7],de:[51.2,10.5],
+  it:[41.9,12.6],gb:[55.4,-3.4],pt:[39.4,-8.2],gr:[39.1,21.8],nl:[52.1,5.3],
+  be:[50.5,4.5],at:[47.5,13.4],ch:[46.8,8.2],se:[60.1,18.6],no:[60.5,8.5],
+  dk:[56.3,9.5],fi:[61.9,25.7],pl:[51.9,19.1],cz:[49.8,15.5],hu:[47.2,19.5],
+  ro:[45.9,24.9],hr:[45.1,15.2],ie:[53.1,-8.0],bg:[42.7,25.5],rs:[44.0,21.0],
+  al:[41.2,20.2],ua:[48.4,31.2],sk:[48.7,19.7],si:[46.2,15.0],lt:[55.2,23.9],
+  lv:[56.9,24.1],ee:[58.6,25.0],jp:[36.2,138.3],kr:[35.9,127.8],cn:[35.9,104.2],
+  in:[20.6,79.0],th:[15.9,100.9],tr:[39.1,35.2],il:[31.0,34.9],ae:[23.4,53.8],
+  id:[-0.8,113.9],my:[4.2,101.9],eg:[26.8,30.8],za:[-30.6,22.9],ma:[31.8,-7.1],
+  ke:[-0.0,37.9],tz:[-6.4,34.9],au:[-25.3,133.8],nz:[-40.9,174.9],ru:[61.5,105.3],
+  bo:[-16.3,-63.6],
+};
+
+// Country sizes in km (approximate max dimension) — for within-country scoring
+const COUNTRY_SIZES = {
+  us:4500,ca:5500,mx:3000,cu:1000,br:4300,ar:3500,co:1600,cl:4300,pe:1800,
+  es:1200,fr:1000,de:900,it:1100,gb:800,pt:600,gr:800,nl:300,be:300,
+  at:500,ch:350,se:1600,no:1800,dk:400,fi:1200,pl:800,cz:500,hu:500,
+  ro:600,hr:500,ie:500,jp:1500,kr:500,cn:5000,in:3000,th:1600,tr:1600,
+  il:400,ae:500,id:5200,my:1500,eg:1200,za:1900,ma:1000,ke:1000,tz:1000,
+  au:4000,nz:1600,ru:9000,
+};
+
 // Known landmark coordinates for rounds without lat/lng
 const LANDMARK_COORDS = {
   'Eiffel Tower':[48.858,2.295],'Colosseum':[41.890,12.492],'Big Ben':[51.501,-0.142],
@@ -321,65 +349,68 @@ function revealResult() {
   const guessedSubId = getSelectedId();
   const guessedInfo = getSubdivisionInfo(guessedSubId);
 
-  // Determine correct subdivision from loaded map data.
-  // Round IDs and GeoJSON IDs use different formats, and subdivision names
-  // may differ (e.g. "Bavaria" vs "Bayern", "Giza" vs "Al Jizah").
-  // Solution: use known lat/lng or find the geographically closest subdivision.
-  const allSubs = getAllSubdivisionData();
-  const subEntries = Object.entries(allSubs);
+  // --- Correct location reference ---
+  // Use real lat/lng if available, then LANDMARK_COORDS, then country center
+  const correctCountryId = r.countryId;
+  const correctCountryCenter = COUNTRY_CENTERS[correctCountryId];
+  let refLat = 0, refLng = 0;
 
-  // Get the reference point for the correct location
-  let refLat, refLng;
   if (r.lat && r.lng && (r.lat !== 0 || r.lng !== 0)) {
-    // Round has real coordinates
-    refLat = r.lat;
-    refLng = r.lng;
-  } else {
-    // No real coords — use known landmarks database
-    refLat = LANDMARK_COORDS[r.locationName]?.[0] || 0;
-    refLng = LANDMARK_COORDS[r.locationName]?.[1] || 0;
+    refLat = r.lat; refLng = r.lng;
+  } else if (LANDMARK_COORDS[r.locationName]) {
+    refLat = LANDMARK_COORDS[r.locationName][0];
+    refLng = LANDMARK_COORDS[r.locationName][1];
+  } else if (correctCountryCenter) {
+    refLat = correctCountryCenter[0];
+    refLng = correctCountryCenter[1];
   }
 
-  // Find the closest subdivision to the reference point
-  let correctSubId = null;
-  let minD = Infinity;
+  // --- Find correct subdivision (for highlight on map) ---
+  const allSubs = getAllSubdivisionData();
+  let correctSubId = null, minD = Infinity;
   if (refLat !== 0 || refLng !== 0) {
-    for (const [sid, info] of subEntries) {
+    for (const [sid, info] of Object.entries(allSubs)) {
       const d = haversineDistance(info.lat, info.lng, refLat, refLng);
       if (d < minD) { minD = d; correctSubId = sid; }
     }
   }
-
-  // Fallback: try exact ID match (rarely works but costs nothing)
-  if (!correctSubId && r.subdivisionId && allSubs[r.subdivisionId]) {
-    correctSubId = r.subdivisionId;
+  if (!correctSubId && Object.keys(allSubs).length > 0) {
+    correctSubId = Object.keys(allSubs)[0];
   }
-
-  // Last resort
-  if (!correctSubId && subEntries.length > 0) {
-    correctSubId = subEntries[0][0];
-  }
-
   const correctInfo = getSubdivisionInfo(correctSubId);
   const correctLat = refLat || correctInfo?.lat || 0;
   const correctLng = refLng || correctInfo?.lng || 0;
 
-  // Distance between guessed subdivision centroid and correct location
-  const distKm = guessedInfo ? haversineDistance(guessedInfo.lat, guessedInfo.lng, correctLat, correctLng) : 20000;
-
-  // GeoGuessr-style exponential decay scoring
-  // Formula: 5000 * e^(-10 * d / D)
-  // D = map diagonal (~20000 km for world map)
-  // Perfect (exact region match) = always 5000
-  // <150m = 5000, then exponential decay by distance
-  const MAP_DIAGONAL = 20000;
+  // --- Scoring: Country-first + subdivision precision ---
+  // Same country = 2500 base + up to 2500 for subdivision proximity
+  // Different country = exponential decay by distance between countries
+  const sameCountry = guessedCountryId === correctCountryId;
   let score = 0;
-  if (guessedSubId === correctSubId) {
-    score = MAX_SCORE_PER_ROUND;
-  } else if (distKm < 0.15) {
-    score = MAX_SCORE_PER_ROUND;
+  let distKm = 0;
+
+  if (sameCountry) {
+    // Distance from guessed subdivision centroid to the correct point
+    distKm = guessedInfo ? haversineDistance(guessedInfo.lat, guessedInfo.lng, correctLat, correctLng) : 0;
+
+    if (guessedSubId === correctSubId) {
+      score = MAX_SCORE_PER_ROUND; // 5000 — exact subdivision
+    } else if (distKm < 1) {
+      score = MAX_SCORE_PER_ROUND; // practically the same spot
+    } else {
+      // Base 2500 for correct country + up to 2500 bonus by proximity
+      const countrySize = COUNTRY_SIZES[correctCountryId] || 1500;
+      const norm = Math.min(distKm / countrySize, 1);
+      const bonus = Math.round(2500 * (1 - norm));
+      score = 2500 + bonus; // Range: 2500 (far edge) to 4999 (very close)
+    }
   } else {
-    score = Math.round(MAX_SCORE_PER_ROUND * Math.exp(-10 * distKm / MAP_DIAGONAL));
+    // Wrong country — distance between guessed point and correct point
+    const guessLat = guessedInfo?.lat || (COUNTRY_CENTERS[guessedCountryId]?.[0] || 0);
+    const guessLng = guessedInfo?.lng || (COUNTRY_CENTERS[guessedCountryId]?.[1] || 0);
+    distKm = haversineDistance(guessLat, guessLng, correctLat, correctLng);
+    // Exponential decay: 2500 * e^(-5 * d / 20000)
+    // At 500km ≈ 2206, 2000km ≈ 1516, 5000km ≈ 716, 10000km ≈ 205
+    score = Math.round(2500 * Math.exp(-5 * distKm / 20000));
   }
 
   roundScores.push(score);
@@ -841,12 +872,11 @@ function showScoringHelp() {
     <div class="modal-content" style="max-width:400px">
       <div class="modal-header"><h2>How Scoring Works</h2><button class="modal-close" onclick="this.closest('.modal').classList.add('hidden')">&times;</button></div>
       <div style="font-size:0.85rem;line-height:1.7;color:var(--text-dim)">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🎯</span><strong style="color:var(--success)">5,000 pts</strong> — Exact match or &lt;150m</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🔥</span><strong style="color:var(--primary)">4,000+</strong> — Within ~500 km</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">👍</span><strong style="color:var(--accent)">2,500+</strong> — Within ~1,500 km</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">😐</span><strong style="color:var(--text-dim)">1,000+</strong> — Within ~3,000 km</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">😬</span><strong style="color:var(--danger)">0-999</strong> — More than 5,000 km away</div>
-        <p style="margin-top:12px;padding-top:12px;border-top:1px solid #2a2a3a">Only distance matters! The closer your pin to the real location, the more points you get. Country borders don't affect scoring.</p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🎯</span><strong style="color:var(--success)">5,000 pts</strong> — Exact region match</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">🔥</span><strong style="color:var(--primary)">2,500-4,999</strong> — Right country (bonus for close region)</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">👍</span><strong style="color:var(--accent)">1,000-2,499</strong> — Nearby country</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-size:1.2rem">😬</span><strong style="color:var(--danger)">0-999</strong> — Far away</div>
+        <p style="margin-top:12px;padding-top:12px;border-top:1px solid #2a2a3a">Pick the right country for guaranteed 2,500+ pts! Then get close to the exact region for up to 5,000.</p>
       </div>
     </div>`;
   document.getElementById('app').appendChild(modal);
