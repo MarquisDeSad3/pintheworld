@@ -21,7 +21,7 @@ import { initAds, showRewardedAd } from './ads.js';
 import { initEasterEggs, enablePressF, disablePressF } from './easter-eggs.js';
 import { SEED_ROUNDS } from './seed-rounds.js';
 
-const PLAYS_GUEST = 1;
+const PLAYS_GUEST = 3;
 const PLAYS_SIGNED_IN = 5;
 // Premium = unlimited (check localStorage ptw_premium)
 const $ = sel => document.querySelector(sel);
