@@ -51,23 +51,31 @@ const S = {
   wrong:           { fillColor: '#ef4444', fillOpacity: 0.2, weight: 2, color: 'rgba(239,68,68,0.7)' },
 };
 
-// ---- Home Map (decorative, with cinematic zoom-out) ----
+// ---- Home Map (decorative, with slow pan) ----
 export function initHomeMap(containerId) {
-  if (homeMap) { homeMap.invalidateSize(); return homeMap; }
+  if (homeMap) {
+    homeMap.invalidateSize();
+    return homeMap;
+  }
 
-  // Start at a random interesting location, zoomed in
+  // Start at a random interesting location, zoomed in close
   const spot = ZOOM_SPOTS[Math.floor(Math.random() * ZOOM_SPOTS.length)];
   homeMap = L.map(containerId, {
-    center: spot, zoom: 5, minZoom: 2, maxZoom: 18,
+    center: spot, zoom: 8, minZoom: 2, maxZoom: 18,
     zoomControl: false, attributionControl: false, worldCopyJump: true,
+    zoomAnimation: true,
   });
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }).addTo(homeMap);
   setTimeout(() => homeMap.invalidateSize(), 100);
 
-  // Cinematic zoom-out to world view after 600ms
-  setTimeout(() => {
-    if (homeMap) homeMap.flyTo([20, 0], 2, { duration: 2.5 });
-  }, 600);
+  // Slow continuous pan to the left (no zoom out)
+  let panInterval = setInterval(() => {
+    if (!homeMap) { clearInterval(panInterval); return; }
+    homeMap.panBy([1, 0], { animate: false });
+  }, 50);
+
+  // Store interval so we can clean up later
+  homeMap._panInterval = panInterval;
 
   return homeMap;
 }
