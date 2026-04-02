@@ -1,7 +1,7 @@
 /* PinTheWorld — Game Engine (Drill-down: Country → Subdivision) */
 
 import { playSound } from './sounds.js';
-import { haversineDistance, selectRandomRounds, MAX_SCORE_PER_ROUND, ROUNDS_PER_GAME } from './scoring.js';
+import { haversineDistance, selectRandomRounds, selectDailyRounds, getDailySeed, MAX_SCORE_PER_ROUND, ROUNDS_PER_GAME } from './scoring.js';
 import { getLevel, getLevelProgress, scoreToXP } from './levels.js';
 import { checkAchievements, ACHIEVEMENTS, getAchievementCategories, getUnlockedAchievements, getUnlockedMap, syncAchievements } from './achievements.js';
 import { COUNTRIES, getCountry } from './countries/index.js';
@@ -37,6 +37,7 @@ let adPlayGranted = false;
 let roundTimer = null;
 let roundSeconds = 0;
 let currentStreak = 0;
+let isDailyChallenge = false;
 
 // Country centers (lat, lng) — for distance between countries
 const COUNTRY_CENTERS = {
@@ -216,21 +217,35 @@ function showAdminScreen() {
   initAdmin();
 }
 
+// ---- Start Daily Challenge ----
+async function startDailyChallenge() {
+  const dailyKey = `ptw_daily_${getDailySeed()}`;
+  if (localStorage.getItem(dailyKey)) {
+    showToast('You already played today\'s Daily Challenge!');
+    return;
+  }
+  isDailyChallenge = true;
+  await startGame('places');
+}
+
 // ---- Start Game ----
 async function startGame(mode) {
   gameMode = mode;
-  // Check play limits
-  const isPremium = await checkPremium();
-  if (!isPremium && !adPlayGranted) {
-    const plays = getDailyPlays();
-    const limit = isSignedIn() ? PLAYS_SIGNED_IN : PLAYS_GUEST;
-    if (plays >= limit) {
-      if (!isSignedIn()) {
-        showToast(t('signInMore'));
-      } else {
-        showPremiumModal();
+
+  // Check play limits (daily challenge is free)
+  if (!isDailyChallenge) {
+    const isPremium = await checkPremium();
+    if (!isPremium && !adPlayGranted) {
+      const plays = getDailyPlays();
+      const limit = isSignedIn() ? PLAYS_SIGNED_IN : PLAYS_GUEST;
+      if (plays >= limit) {
+        if (!isSignedIn()) {
+          showToast(t('signInMore'));
+        } else {
+          showPremiumModal();
+        }
+        return;
       }
-      return;
     }
   }
   adPlayGranted = false;
@@ -239,11 +254,17 @@ async function startGame(mode) {
 
   // No rounds available — show "building levels" message
   if (!allRounds || allRounds.length === 0) {
+    isDailyChallenge = false;
     showNoRoundsScreen(mode);
     return;
   }
 
-  dailyRounds = selectRandomRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length), mode);
+  // Daily challenge: same rounds for everyone today. Normal: random non-repeating.
+  if (isDailyChallenge) {
+    dailyRounds = selectDailyRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length));
+  } else {
+    dailyRounds = selectRandomRounds(allRounds, Math.min(ROUNDS_PER_GAME, allRounds.length), mode);
+  }
   currentRoundIndex = 0;
   totalScore = 0;
   roundScores = [];
@@ -652,6 +673,15 @@ function endGame() {
   const lv = getLevel(s.totalScore);
   $('#level-icon').textContent = lv.icon;
   $('#level-name').textContent = lv.name;
+
+  // Daily challenge: mark as played today
+  if (isDailyChallenge) {
+    localStorage.setItem(`ptw_daily_${getDailySeed()}`, String(totalScore));
+    isDailyChallenge = false;
+  }
+
+  // Sync stats to Supabase (fire-and-forget)
+  syncStatsToSupabase(s, lv);
 }
 
 function getShareText() {
@@ -939,6 +969,88 @@ function incrementDailyPlays() { localStorage.setItem(`ptw_plays_${gameMode}`, J
 function getLocalStats() { try{return JSON.parse(localStorage.getItem('ptw_stats'))||{};}catch{return {};} }
 function saveLocalStats(s) { localStorage.setItem('ptw_stats',JSON.stringify(s)); }
 
+// ---- Sync stats to Supabase ----
+async function syncStatsToSupabase(stats, level) {
+  if (isDemoMode || !supabase || !isSignedIn()) return;
+  const user = getCurrentUser();
+  if (!user || user.isGuest) return;
+
+  try {
+    // Upsert user_stats
+    await supabase.from('user_stats').upsert({
+      user_id: user.id,
+      total_games: stats.totalGames || 0,
+      total_score: stats.totalScore || 0,
+      best_score: stats.bestScore || 0,
+      perfect_guesses: stats.perfectGuesses || 0,
+      streak: stats.streak || 0,
+      max_streak: Math.max(stats.streak || 0, stats.maxStreak || 0),
+      last_play_date: new Date().toISOString().split('T')[0],
+      countries_played: stats.countriesPlayedList || [],
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+
+    // Upsert leaderboard (denormalized for fast reads)
+    const xp = scoreToXP(stats.totalScore || 0);
+    await supabase.from('leaderboard').upsert({
+      user_id: user.id,
+      display_name: user.displayName || 'Player',
+      avatar_url: user.avatarUrl || null,
+      total_score: stats.totalScore || 0,
+      total_games: stats.totalGames || 0,
+      best_score: stats.bestScore || 0,
+      perfect_guesses: stats.perfectGuesses || 0,
+      countries_count: (stats.countriesPlayedList || []).length,
+      xp,
+      level_name: level?.name || 'Tourist',
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+  } catch (e) {
+    console.error('Stats sync error:', e);
+  }
+}
+
+// ---- Leaderboard ----
+async function loadLeaderboard() {
+  const content = $('#leaderboard-content');
+  if (!content) return;
+
+  content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim)">Loading...</div>';
+
+  if (isDemoMode || !supabase) {
+    content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim)">Sign in to see the leaderboard</div>';
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('leaderboard')
+      .select('*')
+      .order('total_score', { ascending: false })
+      .limit(50);
+
+    if (error || !data || data.length === 0) {
+      content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim)">No players yet. Be the first!</div>';
+      return;
+    }
+
+    const user = getCurrentUser();
+    content.innerHTML = data.map((p, i) => {
+      const isMe = user && p.user_id === user.id;
+      const rank = i + 1;
+      const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+      const lvl = getLevel(p.total_score || 0);
+      return `<div class="lb-row ${isMe ? 'lb-me' : ''}">
+        <span class="lb-rank">${medal}</span>
+        <span class="lb-name">${lvl.icon} ${p.display_name || 'Player'}</span>
+        <span class="lb-score">${(p.total_score || 0).toLocaleString()}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-dim)">Error loading leaderboard</div>';
+  }
+}
+
 function showPremiumModal() {
   const existing = $('#modal-premium');
   if (existing) { existing.classList.remove('hidden'); return; }
@@ -1102,7 +1214,8 @@ function bindEvents() {
   $('#btn-share').onclick=shareResults;
   $('#btn-play-again').onclick=()=>{hideModal('modal-gameover');startGame(gameMode);};
   $('#btn-change-country').onclick=()=>{hideModal('modal-gameover');destroyGameMap();gameState='IDLE';showHomeScreen();};
-  $('#btn-leaderboard').onclick=()=>showModal('modal-leaderboard');
+  $('#btn-leaderboard').onclick=()=>{ loadLeaderboard(); showModal('modal-leaderboard'); };
+  $('#btn-daily-challenge').onclick=()=>startDailyChallenge();
   $('#btn-admin').onclick=()=>{ window.location.hash='admin'; showAdminScreen(); };
   $('#btn-profile').onclick=()=>{
     const s=getLocalStats(),l=getLevel(s.totalScore||0),li=getLevelProgress(s.totalScore||0),u=getCurrentUser();

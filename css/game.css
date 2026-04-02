@@ -131,6 +131,55 @@
 }
 .play-go-btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
 
+/* Daily Challenge Button */
+.daily-challenge-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  margin-top: 8px;
+  background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(239,68,68,0.1));
+  border: 1px solid rgba(245,158,11,0.35);
+  border-radius: 20px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+  animation: daily-pulse 3s ease-in-out infinite;
+}
+.daily-challenge-btn:hover {
+  background: linear-gradient(135deg, rgba(245,158,11,0.25), rgba(239,68,68,0.15));
+  transform: translateY(-1px);
+}
+.daily-icon { font-size: 1.1rem; }
+@keyframes daily-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.3); }
+  50% { box-shadow: 0 0 0 6px rgba(245,158,11,0); }
+}
+
+/* Leaderboard rows */
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+.lb-row:hover { background: rgba(255,255,255,0.03); }
+.lb-row.lb-me {
+  background: rgba(99,102,241,0.1);
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: var(--radius-sm);
+}
+.lb-rank { width: 36px; text-align: center; font-weight: 700; }
+.lb-name { flex: 1; font-weight: 600; }
+.lb-score { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+
 .search-box {
   display: flex;
   align-items: center;

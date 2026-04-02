@@ -88,4 +88,36 @@ export function selectRandomRounds(allRounds, count, mode) {
   return selected;
 }
 
+/**
+ * Seeded random for deterministic daily challenge.
+ * Same seed = same sequence for all players.
+ */
+function seededRandom(seed) {
+  let s = seed;
+  return function () {
+    s = (s * 1664525 + 1013904223) & 0xFFFFFFFF;
+    return (s >>> 0) / 0xFFFFFFFF;
+  };
+}
+
+export function getDailySeed() {
+  const d = new Date();
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+}
+
+/**
+ * Select daily challenge rounds — same 10 for ALL players today.
+ * Uses seeded shuffle so everyone gets identical rounds.
+ */
+export function selectDailyRounds(allRounds, count) {
+  count = count || ROUNDS_PER_GAME;
+  const rand = seededRandom(getDailySeed());
+  const shuffled = [...allRounds];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, count);
+}
+
 export { MAX_SCORE_PER_ROUND, ROUNDS_PER_GAME };

@@ -15,6 +15,30 @@ let currentPhase = 'world'; // 'world' | 'country'
 
 const geoJsonCache = new Map();
 
+// Random interesting locations for cinematic zoom-out on map load
+const ZOOM_SPOTS = [
+  [48.86, 2.35],    // Paris
+  [40.42, -3.70],   // Madrid
+  [41.89, 12.49],   // Rome
+  [35.68, 139.69],  // Tokyo
+  [40.71, -74.01],  // New York
+  [-22.91, -43.17], // Rio
+  [29.98, 31.13],   // Pyramids
+  [-33.86, 151.21], // Sydney
+  [37.97, 23.73],   // Athens
+  [55.75, 37.62],   // Moscow
+  [25.20, 55.27],   // Dubai
+  [-13.16, -72.55], // Machu Picchu
+  [27.17, 78.04],   // Taj Mahal
+  [51.50, -0.13],   // London
+  [52.52, 13.40],   // Berlin
+  [19.43, -99.13],  // Mexico City
+  [-34.60, -58.38], // Buenos Aires
+  [1.35, 103.82],   // Singapore
+  [59.33, 18.07],   // Stockholm
+  [4.71, -74.07],   // Bogota
+];
+
 // ---- Styles ----
 const S = {
   countryDefault:  { fillColor: 'transparent', fillOpacity: 0, color: 'rgba(255,255,255,0.2)', weight: 0.6 },
@@ -27,15 +51,24 @@ const S = {
   wrong:           { fillColor: '#ef4444', fillOpacity: 0.2, weight: 2, color: 'rgba(239,68,68,0.7)' },
 };
 
-// ---- Home Map (decorative) ----
+// ---- Home Map (decorative, with cinematic zoom-out) ----
 export function initHomeMap(containerId) {
   if (homeMap) { homeMap.invalidateSize(); return homeMap; }
+
+  // Start at a random interesting location, zoomed in
+  const spot = ZOOM_SPOTS[Math.floor(Math.random() * ZOOM_SPOTS.length)];
   homeMap = L.map(containerId, {
-    center: [20, 0], zoom: 2, minZoom: 2, maxZoom: 18,
+    center: spot, zoom: 5, minZoom: 2, maxZoom: 18,
     zoomControl: false, attributionControl: false, worldCopyJump: true,
   });
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 18 }).addTo(homeMap);
   setTimeout(() => homeMap.invalidateSize(), 100);
+
+  // Cinematic zoom-out to world view after 600ms
+  setTimeout(() => {
+    if (homeMap) homeMap.flyTo([20, 0], 2, { duration: 2.5 });
+  }, 600);
+
   return homeMap;
 }
 
