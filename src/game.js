@@ -380,15 +380,21 @@ function revealResult() {
 
   // --- Find correct subdivision (for highlight on map) ---
   const allSubs = getAllSubdivisionData();
-  let correctSubId = null, minD = Infinity;
-  if (refLat !== 0 || refLng !== 0) {
-    for (const [sid, info] of Object.entries(allSubs)) {
-      const d = haversineDistance(info.lat, info.lng, refLat, refLng);
-      if (d < minD) { minD = d; correctSubId = sid; }
+  let correctSubId = null;
+  // Use the round's known subdivisionId when it exists in the loaded subdivisions
+  if (r.subdivisionId && allSubs[r.subdivisionId]) {
+    correctSubId = r.subdivisionId;
+  } else {
+    let minD = Infinity;
+    if (refLat !== 0 || refLng !== 0) {
+      for (const [sid, info] of Object.entries(allSubs)) {
+        const d = haversineDistance(info.lat, info.lng, refLat, refLng);
+        if (d < minD) { minD = d; correctSubId = sid; }
+      }
     }
-  }
-  if (!correctSubId && Object.keys(allSubs).length > 0) {
-    correctSubId = Object.keys(allSubs)[0];
+    if (!correctSubId && Object.keys(allSubs).length > 0) {
+      correctSubId = Object.keys(allSubs)[0];
+    }
   }
   const correctInfo = getSubdivisionInfo(correctSubId);
   const correctLat = refLat || correctInfo?.lat || 0;
@@ -461,7 +467,7 @@ function revealResult() {
     fitPoints(guessLat, guessLng, correctLat, correctLng);
   }
   if (correctLat && correctLng) {
-    const correctName = correctInfo?.name || r.locationName || '?';
+    const correctName = r.locationName || correctInfo?.name || '?';
     addLabel([correctLat, correctLng], `✓ ${correctName}`, 'map-label correct-label');
   }
   if (guessedSubId !== correctSubId && guessedInfo) {
