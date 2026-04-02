@@ -1210,6 +1210,7 @@ function bindEvents() {
       showHomeScreen();
     } else {
       destroyGameMap();
+      isDailyChallenge = false;
       gameState='IDLE';
       window.location.hash = '';
       showHomeScreen();
@@ -1221,8 +1222,8 @@ function bindEvents() {
   $('#btn-confirm').onclick=confirmGuess;
   $('#btn-next-round').onclick=nextRound;
   $('#btn-share').onclick=shareResults;
-  $('#btn-play-again').onclick=()=>{hideModal('modal-gameover');startGame(gameMode);};
-  $('#btn-change-country').onclick=()=>{hideModal('modal-gameover');destroyGameMap();gameState='IDLE';showHomeScreen();};
+  $('#btn-play-again').onclick=()=>{isDailyChallenge=false;hideModal('modal-gameover');startGame(gameMode);};
+  $('#btn-change-country').onclick=()=>{isDailyChallenge=false;hideModal('modal-gameover');destroyGameMap();gameState='IDLE';showHomeScreen();};
   $('#btn-leaderboard').onclick=()=>{ loadLeaderboard(); showModal('modal-leaderboard'); };
   $('#btn-daily-challenge').onclick=()=>startDailyChallenge();
   $('#btn-admin').onclick=()=>{ window.location.hash='admin'; showAdminScreen(); };
