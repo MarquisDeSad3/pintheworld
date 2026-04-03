@@ -335,9 +335,9 @@ function revealResult() {
   const allSubs = getAllSubdivisionData();
   const correctInfo = allSubs[correctSubId] ? getSubdivisionInfo(correctSubId) : null;
 
-  // Correct coordinates = subdivision centroid (fallback: round lat/lng, then country center)
-  const correctLat = correctInfo?.lat || (r.lat && r.lng ? r.lat : (COUNTRY_CENTERS[correctCountryId]?.[0] || 0));
-  const correctLng = correctInfo?.lng || (r.lat && r.lng ? r.lng : (COUNTRY_CENTERS[correctCountryId]?.[1] || 0));
+  // Correct coordinates = subdivision centroid (fallback: country center)
+  const correctLat = correctInfo?.lat || (COUNTRY_CENTERS[correctCountryId]?.[0] || 0);
+  const correctLng = correctInfo?.lng || (COUNTRY_CENTERS[correctCountryId]?.[1] || 0);
 
   // --- Scoring: subdivision-based ---
   const sameCountry = guessedCountryId === correctCountryId;
@@ -674,7 +674,6 @@ async function loadRounds(mode) {
       if (!error && data) {
         data.forEach(r => addRound({
           id: r.id,
-          lat: 0, lng: 0,
           locationName: r.subdivision_name || '?',
           country: r.country_name || '?',
           countryId: r.country_id,
@@ -693,7 +692,7 @@ async function loadRounds(mode) {
   try {
     const localActive = JSON.parse(localStorage.getItem('ptw_active_rounds') || '[]');
     localActive.filter(r => r.mode === mode).forEach(r => addRound({
-      id: r.id, lat: r.lat || 0, lng: r.lng || 0,
+      id: r.id,
       locationName: r.locationName || r.subdivision_name || '?',
       country: r.countryName || r.country_name || '?',
       countryId: r.countryId || r.country_id,
